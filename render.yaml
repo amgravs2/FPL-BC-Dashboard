@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: fpl-breakfast-club-dashboard
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://fpl-bc-claude.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

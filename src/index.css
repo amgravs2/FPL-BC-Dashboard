@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@400;500&family=Crimson+Pro:wght@400;600&display=swap');
+
+:root {
+  /* Pub palette */
+  --bg-deep:       #0d0b08;
+  --bg-surface:    #161310;
+  --bg-raised:     #1e1a15;
+  --bg-card:       #241f18;
+  --bg-hover:      #2e2820;
+
+  /* Gold / Brass */
+  --gold-bright:   #d4a843;
+  --gold-mid:      #b8892e;
+  --gold-muted:    #8a6420;
+  --gold-dim:      #4a3610;
+
+  /* Text */
+  --text-primary:  #f0e6d0;
+  --text-secondary:#a89070;
+  --text-muted:    #5a4a35;
+
+  /* Accents */
+  --green:         #3d6b45;
+  --green-bright:  #5a9e64;
+  --red:           #8b3a3a;
+  --red-bright:    #c05555;
+  --draw:          #6b6040;
+
+  /* Borders */
+  --border:        #2e2518;
+  --border-gold:   #4a3610;
+
+  /* Manager colors — one per person */
+  --color-ag: #d4a843;
+  --color-sg: #7eb8d4;
+  --color-jd: #c07a5a;
+  --color-jh: #7ab87a;
+  --color-rm: #b87ab8;
+  --color-km: #d47878;
+
+  --radius: 4px;
+  --radius-lg: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  min-height: 100vh;
+
+  /* Subtle noise texture */
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(212,168,67,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(61,107,69,0.03) 0%, transparent 50%);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 3px; }
+
+/* Typography */
+h1, h2, h3, h4 {
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85em;
+}
+
+/* Utility classes */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+}
+
+.card--raised {
+  background: var(--bg-raised);
+  border-color: var(--border-gold);
+}
+
+.gold { color: var(--gold-bright); }
+.muted { color: var(--text-secondary); }
+
+.badge {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.badge--win   { background: rgba(61,107,69,0.3);   color: var(--green-bright); border: 1px solid var(--green); }
+.badge--loss  { background: rgba(139,58,58,0.3);   color: var(--red-bright);   border: 1px solid var(--red); }
+.badge--draw  { background: rgba(107,96,64,0.3);   color: #c8b870;             border: 1px solid var(--draw); }
+
+/* Divider */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border-gold);
+  margin: 1.5rem 0;
+  opacity: 0.5;
+}
+
+/* Ornamental rule */
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--gold-muted);
+  margin: 1rem 0;
+}
+.rule::before, .rule::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border-gold);
+}
+
+/* Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.fade-up {
+  animation: fadeUp 0.4s ease both;
+}
+
+/* Responsive grid */
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+
+@media (max-width: 900px) {
+  .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
