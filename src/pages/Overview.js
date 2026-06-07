@@ -19,7 +19,7 @@ function StandingsTable({ data, seasonId }) {
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.85rem' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid var(--border-gold)' }}>
-            {['#', 'Manager', 'W', 'D', 'L', 'PF', 'PA', 'Pts'].map(h => (
+            {['#', 'Manager', 'W', 'D', 'L', 'PF', 'PA', 'PD', 'Pts'].map(h => (
               <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: h === 'Manager' ? 'left' : 'center', color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</th>
             ))}
           </tr>
@@ -54,6 +54,9 @@ function StandingsTable({ data, seasonId }) {
                 ))}
                 <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-primary)' }}>{row.points_for}</td>
                 <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{row.points_against}</td>
+                <td style={{ padding: '0.75rem', textAlign: 'center', color: (row.points_for - row.points_against) >= 0 ? 'var(--green-bright)' : 'var(--red-bright)', fontWeight: 600 }}>
+                  {row.points_for - row.points_against >= 0 ? '+' : ''}{row.points_for - row.points_against}
+                </td>
                 <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                   <span style={{ color: 'var(--gold-bright)', fontWeight: 700, fontSize: '1rem' }}>{row.league_points}</span>
                 </td>
@@ -267,7 +270,9 @@ export default function OverviewPage() {
   const leader = summary?.[0];
   const leaderM = leader ? getManager(managerMap, leader.team_id) : null;
   const totalGws = chart ? Math.max(...chart.map(d => d.gw)) : 0;
-  const highScore = chart ? Math.max(...chart.map(d => d.points_for)) : 0;
+  const highScoreRow = chart ? chart.reduce((best, d) => d.points_for > (best?.points_for ?? 0) ? d : best, null) : null;
+  const highScore = highScoreRow?.points_for ?? 0;
+  const highScoreM = highScoreRow ? getManager(managerMap, highScoreRow.team_id) : null;
 
   return (
     <div className="fade-up">
@@ -285,7 +290,7 @@ export default function OverviewPage() {
       {/* Quick stats */}
       <div className="grid-4" style={{ marginBottom: '2.5rem' }}>
         <StatCard label="League Leader" value={leaderM?.initials} sub={`${leader?.league_points} pts`} accent={leaderM?.color} />
-        <StatCard label="Top Score (GW)" value={highScore} sub="points in a week" accent="var(--gold-bright)" />
+        <StatCard label="Top Score" value={highScore} sub={`${highScoreM?.initials ?? ''} · GW${highScoreRow?.gw ?? ''}`} accent="var(--gold-bright)" />
         <StatCard label="Gameweeks" value={totalGws} sub="of 38 complete" accent="var(--green-bright)" />
         <StatCard label="Managers" value={summary?.length} sub="in the league" accent="var(--color-rm)" />
       </div>
