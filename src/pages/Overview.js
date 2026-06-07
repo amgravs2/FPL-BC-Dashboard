@@ -13,6 +13,7 @@ const MEDAL = ['🥇', '🥈', '🥉'];
 
 /* ── Standings Table ── */
 function StandingsTable({ data, seasonId }) {
+  const managerMap = useManagerMap();
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.85rem' }}>
@@ -67,6 +68,7 @@ function StandingsTable({ data, seasonId }) {
 
 /* ── Animated Points Chart ── */
 function PointsChart({ data }) {
+  const managerMap = useManagerMap();
   const [frame, setFrame]     = useState(0);
   const [playing, setPlaying] = useState(false);
   const intervalRef           = useRef(null);
@@ -189,6 +191,7 @@ function PointsChart({ data }) {
 
 /* ── Results Grid ── */
 function ResultsGrid({ data }) {
+  const managerMap = useManagerMap();
   const [gw, setGw] = useState(1);
   const gwData = data.filter(d => d.gw === gw);
   const maxGw  = Math.max(...data.map(d => d.gw));
