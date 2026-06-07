@@ -291,12 +291,8 @@ export function RecordsPage() {
   if (error)   return <ErrorMsg message={error} />;
   if (!data)   return null;
 
-  const records = [
-    { icon: '🏆', label: 'Highest Score',    data: data.highest_score,     color: 'var(--gold-bright)', fmt: r => `${r.points} pts · GW${r.gw} · ${r.manager}` },
-    { icon: '💀', label: 'Lowest Score',     data: data.lowest_score,      color: 'var(--red-bright)',  fmt: r => `${r.points} pts · GW${r.gw} · ${r.manager}` },
-    { icon: '⚡', label: 'Biggest Margin',   data: data.biggest_margin,    color: 'var(--green-bright)', fmt: r => `${r.winner} ${r.winner_points}–${r.loser_points} ${r.loser} (GW${r.gw})` },
-    { icon: '😤', label: 'Most Pts in Loss', data: data.most_points_in_loss, color: 'var(--color-jh)', fmt: r => `${r.points_for} pts, lost ${r.points_for}–${r.points_against} · GW${r.gw} · ${r.manager}` },
-  ];
+  const { highest_score, lowest_score, biggest_margin, most_points_in_loss,
+          closest_match, longest_win_streak, longest_loss_streak, bench_points } = data;
 
   return (
     <div className="fade-up">
@@ -306,22 +302,106 @@ export function RecordsPage() {
       </div>
 
       <div className="grid-2" style={{ marginBottom: '2rem' }}>
-        {records.map((rec, i) => rec.data && (
-          <div key={i} className="card" style={{ borderLeft: `3px solid ${rec.color}` }}>
-            <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>{rec.icon}</div>
-            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>{rec.label}</div>
-            <div style={{ color: rec.color, fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 600 }}>{rec.fmt(rec.data)}</div>
+        {/* Highest score */}
+        {highest_score && (
+          <div className="card" style={{ borderLeft: '3px solid var(--gold-bright)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🏆</div>
+              <div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--gold-bright)', lineHeight: 1 }}>{highest_score.points}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.2rem' }}>Highest Score</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>GW{highest_score.gw} · {highest_score.manager}</div>
+              </div>
+            </div>
           </div>
-        ))}
+        )}
+        {/* Lowest score */}
+        {lowest_score && (
+          <div className="card" style={{ borderLeft: '3px solid var(--red-bright)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>💀</div>
+              <div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--red-bright)', lineHeight: 1 }}>{lowest_score.points}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.2rem' }}>Lowest Score</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>GW{lowest_score.gw} · {lowest_score.manager}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Biggest margin */}
+        {biggest_margin && (
+          <div className="card" style={{ borderLeft: '3px solid var(--green-bright)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>⚡</div>
+              <div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--green-bright)', lineHeight: 1 }}>+{biggest_margin.margin}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.2rem' }}>Biggest Margin</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>{biggest_margin.winner} {biggest_margin.winner_points}–{biggest_margin.loser_points} {biggest_margin.loser} · GW{biggest_margin.gw}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Most pts in loss */}
+        {most_points_in_loss && (
+          <div className="card" style={{ borderLeft: '3px solid var(--color-jh)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>😤</div>
+              <div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--color-jh)', lineHeight: 1 }}>{most_points_in_loss.points_for}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.2rem' }}>Most Pts in a Loss</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>{most_points_in_loss.manager} lost {most_points_in_loss.points_for}–{most_points_in_loss.points_against} · GW{most_points_in_loss.gw}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Closest match */}
+        {closest_match && (
+          <div className="card" style={{ borderLeft: '3px solid var(--gold-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🤏</div>
+              <div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--gold-bright)', lineHeight: 1 }}>+{closest_match.margin}</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.2rem' }}>Closest Match</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>{closest_match.winner} {closest_match.winner_points}–{closest_match.loser_points} {closest_match.loser} · GW{closest_match.gw}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Win streak */}
+        {longest_win_streak && (
+          <div className="card" style={{ borderLeft: '3px solid var(--green)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🔥</div>
+              <div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--green-bright)', lineHeight: 1 }}>{longest_win_streak.length}W</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.2rem' }}>Longest Win Streak</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>{longest_win_streak.manager} · GW{longest_win_streak.start_gw}–{longest_win_streak.end_gw}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Loss streak */}
+        {longest_loss_streak && (
+          <div className="card" style={{ borderLeft: '3px solid var(--red)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>📉</div>
+              <div>
+                <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '2rem', fontWeight: 700, color: 'var(--red-bright)', lineHeight: 1 }}>{longest_loss_streak.length}L</div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '0.2rem' }}>Longest Loss Streak</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>{longest_loss_streak.manager} · GW{longest_loss_streak.start_gw}–{longest_loss_streak.end_gw}</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bench points */}
-      {data.bench_points?.length > 0 && (
+      {bench_points?.length > 0 && (
         <div className="card">
           <SectionHeader title="Points Left on Bench" sub="Total points scored by benched players" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {data.bench_points.map((row, i) => {
-              const pct = row.bench_points / data.bench_points[0].bench_points;
+            {bench_points.map((row, i) => {
+              const pct = row.bench_points / bench_points[0].bench_points;
               return (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '2rem 1fr auto', alignItems: 'center', gap: '1rem' }}>
                   <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>{i + 1}</div>
