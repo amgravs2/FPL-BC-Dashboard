@@ -10,6 +10,7 @@ import { useManagerMap } from '../ManagerContext';
 import { Loading, ErrorMsg, SectionHeader, Avatar, ResultBadge, StatCard } from '../components/UI';
 
 function PositionBreakdown({ data, color }) {
+  const managerMap = useManagerMap();
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
       {data.map(pos => (
@@ -32,6 +33,7 @@ function PositionBreakdown({ data, color }) {
 }
 
 function WeeklyChart({ weekly, color }) {
+  const managerMap = useManagerMap();
   return (
     <ResponsiveContainer width="100%" height={200}>
       <BarChart data={weekly} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
@@ -54,6 +56,7 @@ function WeeklyChart({ weekly, color }) {
 }
 
 function H2HTable({ h2h }) {
+  const managerMap = useManagerMap();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       {h2h.map(opp => {
