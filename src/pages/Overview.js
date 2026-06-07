@@ -75,11 +75,12 @@ function PointsChart({ data }) {
   const [frame, setFrame]     = useState(0);
   const [playing, setPlaying] = useState(false);
   const intervalRef           = useRef(null);
+  const animRef               = useRef(null);
 
-  // Reshape: array of { gw, AG: 3, SG: 0, ... }
-  const gwMax = data.length > 0 ? Math.max(...data.map(d => d.gw)) : 38;
+  const gwMax   = data.length > 0 ? Math.max(...data.map(d => d.gw)) : 38;
   const teamIds = [...new Set(data.map(d => d.team_id))];
 
+  // Pre-build full dataset
   const byGw = [];
   for (let gw = 1; gw <= gwMax; gw++) {
     const point = { gw };
@@ -92,24 +93,42 @@ function PointsChart({ data }) {
 
   const visible = byGw.slice(0, frame + 1);
 
+  // Smoother animation using requestAnimationFrame with 300ms per GW
   useEffect(() => {
-    if (playing) {
-      intervalRef.current = setInterval(() => {
+    if (!playing) return;
+    let lastTime = null;
+    const MS_PER_GW = 300;
+
+    const step = (timestamp) => {
+      if (!lastTime) lastTime = timestamp;
+      const elapsed = timestamp - lastTime;
+      if (elapsed >= MS_PER_GW) {
+        lastTime = timestamp;
         setFrame(f => {
           if (f >= gwMax - 1) { setPlaying(false); return f; }
           return f + 1;
         });
-      }, 120);
-    } else {
-      clearInterval(intervalRef.current);
-    }
-    return () => clearInterval(intervalRef.current);
+      }
+      animRef.current = requestAnimationFrame(step);
+    };
+    animRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animRef.current);
   }, [playing, gwMax]);
 
   const handlePlay = () => {
     if (frame >= gwMax - 1) setFrame(0);
     setPlaying(true);
   };
+
+  // Get last known value for each team (for end markers)
+  const lastPoints = {};
+  teamIds.forEach(tid => {
+    const last = [...visible].reverse().find(p => p[tid] !== undefined);
+    if (last) lastPoints[tid] = last[tid];
+  });
+
+  // Sort teams by current points for ranking label
+  const ranked = [...teamIds].sort((a, b) => (lastPoints[b] ?? 0) - (lastPoints[a] ?? 0));
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -127,6 +146,25 @@ function PointsChart({ data }) {
           );
         })}
       </div>
+    );
+  };
+
+  // Custom dot — only render on the last data point as an initials circle
+  const CustomDot = ({ cx, cy, dataKey }) => {
+    const tid = parseInt(dataKey);
+    const m   = getManager(managerMap, tid);
+    const lastGwPoint = visible[visible.length - 1];
+    if (!lastGwPoint || lastGwPoint[tid] === undefined) return null;
+    if (lastGwPoint[tid] !== lastPoints[tid]) return null;
+    return (
+      <g key={`dot-${tid}`}>
+        <circle cx={cx} cy={cy} r={14} fill={m.color} opacity={0.15} />
+        <circle cx={cx} cy={cy} r={10} fill="var(--bg-card)" stroke={m.color} strokeWidth={2} />
+        <text x={cx} y={cy + 4} textAnchor="middle" fill={m.color}
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 600 }}>
+          {m.initials}
+        </text>
+      </g>
     );
   };
 
@@ -161,14 +199,16 @@ function PointsChart({ data }) {
         </span>
       </div>
 
-      {/* Legend */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
-        {teamIds.map(tid => {
+      {/* Live rankings strip */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        {ranked.map((tid, i) => {
           const m = getManager(managerMap, tid);
           return (
-            <div key={tid} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <div style={{ width: 20, height: 2, background: m.color, borderRadius: 1 }} />
+            <div key={tid} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.2rem 0.6rem', background: 'var(--bg-raised)', border: `1px solid ${m.color}44`, borderRadius: 20 }}>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)' }}>{i + 1}</span>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: m.color }} />
               <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: m.color }}>{m.initials}</span>
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{lastPoints[tid] ?? 0}</span>
             </div>
           );
         })}
@@ -183,7 +223,16 @@ function PointsChart({ data }) {
           {teamIds.map(tid => {
             const m = getManager(managerMap, tid);
             return (
-              <Line key={tid} type="monotone" dataKey={tid.toString()} stroke={m.color} strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line
+                key={tid}
+                type="monotone"
+                dataKey={tid.toString()}
+                stroke={m.color}
+                strokeWidth={2.5}
+                dot={<CustomDot />}
+                activeDot={{ r: 4, fill: m.color }}
+                isAnimationActive={false}
+              />
             );
           })}
         </LineChart>
