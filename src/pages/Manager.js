@@ -18,13 +18,19 @@ function PositionBreakdown({ data, color }) {
           <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>{pos.position}</div>
           <div style={{ fontSize: '1.6rem', fontFamily: "'Playfair Display', serif", fontWeight: 700, color }}>{pos.points}</div>
           <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-            {pos.goals > 0    && <span>⚽ {pos.goals} goals</span>}
-            {pos.assists > 0  && <span>🎯 {pos.assists} assists</span>}
+            {pos.goals > 0        && <span>⚽ {pos.goals} goals</span>}
+            {pos.assists > 0      && <span>🎯 {pos.assists} assists</span>}
             {pos.clean_sheets > 0 && <span>🧤 {pos.clean_sheets} clean sheets</span>}
-            {pos.saves > 0    && <span>🦺 {pos.saves} saves</span>}
-            {pos.bonus > 0    && <span>⭐ {pos.bonus} bonus</span>}
+            {pos.saves > 0        && <span>🦺 {pos.saves} saves</span>}
+            {pos.bonus > 0        && <span>⭐ {pos.bonus} bonus</span>}
+            {pos.tackles > 0      && <span>🛡️ {pos.tackles} tackles</span>}
+            {pos.recoveries > 0   && <span>🔄 {pos.recoveries} recoveries</span>}
+            {pos.cbi > 0          && <span>✋ {pos.cbi} clearances/blocks/interceptions</span>}
             {pos.yellow_cards > 0 && <span>🟨 {pos.yellow_cards} yellows</span>}
             {pos.red_cards > 0    && <span>🟥 {pos.red_cards} reds</span>}
+            {pos.penalties_saved > 0  && <span>🥅 {pos.penalties_saved} pens saved</span>}
+            {pos.penalties_missed > 0 && <span>❌ {pos.penalties_missed} pens missed</span>}
+            {pos.own_goals > 0    && <span>😬 {pos.own_goals} own goals</span>}
           </div>
         </div>
       ))}
