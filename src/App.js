@@ -7,6 +7,7 @@ import OverviewPage from './pages/Overview';
 import ManagerPage  from './pages/Manager';
 import DraftPage    from './pages/Draft';
 import { PlayersPage, TransfersPage, RecordsPage, AllTimePage } from './pages/OtherPages';
+import ToolsPage from './pages/Tools';
 import './index.css';
 
 function AppContent() {
@@ -28,6 +29,7 @@ function AppContent() {
           <Route path="/transfers"       element={<TransfersPage />} />
           <Route path="/records"         element={<RecordsPage />} />
           <Route path="/alltime"         element={<AllTimePage />} />
+          <Route path="/tools"           element={<ToolsPage />} />
         </Routes>
       </Page>
     </ManagerProvider>
