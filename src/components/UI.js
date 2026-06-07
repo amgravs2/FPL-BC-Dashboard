@@ -121,13 +121,9 @@ export function Nav({ seasonId, seasons }) {
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{
-            width: 32, height: 32,
-            background: 'var(--gold-dim)',
-            border: '1px solid var(--gold-mid)',
-            borderRadius: 4,
+            width: 36, height: 36,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1rem',
-          }}>🍺</div>
+          }}><img src="/logo-02.png" alt="CHFC" style={{ width: 36, height: 36, objectFit: 'contain' }} /></div>
           <span style={{
             fontFamily: "'Playfair Display', serif",
             fontSize: '1.1rem', fontWeight: 700,
