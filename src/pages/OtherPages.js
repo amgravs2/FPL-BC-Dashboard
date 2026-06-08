@@ -8,13 +8,54 @@ import { Loading, ErrorMsg, SectionHeader, Avatar, StatCard } from '../component
 /* ══════════════════════════════════════════
    PLAYERS PAGE
 ══════════════════════════════════════════ */
+function PlayerHistoryPanel({ playerId }) {
+  const { data, loading } = useApi(`/query/player/${playerId}/history`, [playerId]);
+  if (loading) return <td colSpan={12} style={{ padding: '0.75rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }}>Loading history...</td>;
+  if (!data?.history?.length) return <td colSpan={12} style={{ padding: '0.75rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }}>No historical data available</td>;
+  return (
+    <td colSpan={12} style={{ padding: 0 }}>
+      <div style={{ padding: '0.75rem 1rem', background: 'var(--bg-deep)', borderTop: '1px solid var(--border)' }}>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
+          Career History — {data.web_name}
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border-gold)' }}>
+              {['Season', 'Pts', 'G', 'A', 'CS', 'Sv', 'Bon', 'Min', 'Start £', 'End £'].map(h => (
+                <th key={h} style={{ padding: '0.3rem 0.5rem', textAlign: h === 'Season' ? 'left' : 'center', color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.65rem', textTransform: 'uppercase' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.history.map((s, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '0.3rem 0.5rem', color: 'var(--gold-bright)' }}>{s.season}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', fontWeight: 600, color: 'var(--text-primary)' }}>{s.total_points}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{s.goals}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{s.assists}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{s.clean_sheets}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{s.saves}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{s.bonus}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{s.minutes}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>{s.start_cost ? `£${s.start_cost}` : '—'}</td>
+                <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>{s.end_cost ? `£${s.end_cost}` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </td>
+  );
+}
+
 export function PlayersPage() {
   const managerMap = useManagerMap();
   const [searchParams] = useSearchParams();
-  const seasonId       = searchParams.get('season') || 1;
-  const [search, setSearch]   = useState('');
-  const [posFilter, setPosFilter] = useState('ALL');
-  const [sort, setSort]       = useState('total_points');
+  const seasonId           = searchParams.get('season') || 1;
+  const [search, setSearch]         = useState('');
+  const [posFilter, setPosFilter]   = useState('ALL');
+  const [sort, setSort]             = useState('total_points');
+  const [expandedPlayer, setExpandedPlayer] = useState(null);
 
   const { data, loading, error } = useApi(`/query/season/${seasonId}/players`, [seasonId]);
 
