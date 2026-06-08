@@ -313,6 +313,7 @@ export function TransfersPage() {
             </tbody>
           </table>
         </div>
+        </div>
       )}
     </div>
   );
