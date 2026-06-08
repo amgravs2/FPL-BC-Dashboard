@@ -35,7 +35,7 @@ function StandingsTable({ data, seasonId }) {
               }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                onClick={() => navigate(`/manager/${row.team_id}?season=${seasonId}`)}
+
               >
                 <td style={{ padding: '0.75rem', textAlign: 'center', color: i < 3 ? 'var(--gold-bright)' : 'var(--text-muted)' }}>
                   {MEDAL[i] || row.rank}
