@@ -838,24 +838,85 @@ export function PlayerDrillPage() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TRANSFERS SECTION — drop these into OtherPages.js, replacing the existing
+// transfers sub-components, TransfersPage, and TransferStatsPage exports.
+//
+// New in this version:
+//   • Archived injury flags (sourced from player_status_history)
+//   • Smart Score: FDR fixture swap quality badge on each transfer expand
+//   • Hit rate column in manager summary
+//   • TransferStatsPage: hit rate by position, avg delta by position,
+//     regret leaderboard, manager scorecard (hit rate + smart score)
+// ─────────────────────────────────────────────────────────────────────────────
+
 /* ══════════════════════════════════════════
    TRANSFERS — shared sub-components
 ══════════════════════════════════════════ */
 
-function FlagBadge({ flag }) {
+// FDR color scale (same as Players + Tools pages)
+function fdrColor(fdr) {
+  if (!fdr) return { bg: 'var(--bg-raised)', border: 'var(--border)', text: 'var(--text-muted)' };
+  if (fdr <= 2) return { bg: '#0d2b0d', border: '#2d6b2d', text: '#6bcf6b' };
+  if (fdr === 3) return { bg: '#2b2200', border: '#6b5500', text: '#d4a843' };
+  if (fdr === 4) return { bg: '#2b0d0d', border: '#6b2020', text: '#e06060' };
+  return { bg: '#1a0505', border: '#8b1515', text: '#c03030' };
+}
+
+function FdrPip({ fdr, label }) {
+  const c = fdrColor(Math.round(fdr));
+  return (
+    <span
+      title={`Avg FDR next 3 GWs: ${fdr}`}
+      style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: c.bg, border: `1px solid ${c.border}`,
+        borderRadius: 3, padding: '1px 5px',
+        fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem',
+        color: c.text, whiteSpace: 'nowrap', marginLeft: '0.3rem',
+      }}
+    >
+      {label} {fdr?.toFixed(1)}
+    </span>
+  );
+}
+
+function SmartScoreBadge({ score }) {
+  if (score === null || score === undefined) return (
+    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>—</span>
+  );
+  const good  = score > 0.3;
+  const bad   = score < -0.3;
+  const color = good ? 'var(--green-bright)' : bad ? 'var(--red-bright)' : 'var(--text-muted)';
+  const label = good ? '▲ Smart' : bad ? '▼ Reactive' : '≈ Neutral';
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+      fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color,
+    }}>
+      {label} <span style={{ opacity: 0.7 }}>({score > 0 ? '+' : ''}{score.toFixed(1)})</span>
+    </span>
+  );
+}
+
+function FlagBadge({ flag, archived }) {
   if (!flag) return null;
   const color = flag.level === '25%' ? 'var(--red-bright)'
     : flag.level === '50%' ? '#e08c3a'
     : flag.level === '75%' ? '#d4a843'
     : '#aaa';
   return (
-    <span title={flag.news || 'Injury doubt'} style={{
-      display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
-      marginLeft: '0.4rem', fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: '0.65rem', color, cursor: 'help',
-      border: `1px solid ${color}55`, borderRadius: 3, padding: '0 3px',
-    }}>
-      ⚑ {flag.level}
+    <span
+      title={`${archived ? '📁 Archived flag at transfer time' : '⚡ Current flag'}: ${flag.news || flag.level}`}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: '0.2rem',
+        marginLeft: '0.4rem', fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: '0.65rem', color, cursor: 'help',
+        border: `1px solid ${color}55`, borderRadius: 3, padding: '0 3px',
+        opacity: archived ? 1 : 0.75,
+      }}
+    >
+      {archived ? '📁' : '⚑'} {flag.level}
     </span>
   );
 }
@@ -897,35 +958,65 @@ function TransferChart({ transfer }) {
       }));
   }, [transfer]);
 
-  if (chartData.length === 0) {
-    return (
-      <td colSpan={99} style={{ padding: '1.5rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }}>
-        No gameweek data available yet.
-      </td>
-    );
-  }
+  const deltaColor = d => d > 0 ? 'var(--green-bright)' : d < 0 ? 'var(--red-bright)' : 'var(--text-muted)';
 
   return (
     <td colSpan={99} style={{ padding: '1.25rem 1.5rem', background: 'var(--bg-base)' }}>
-      <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.72rem' }}>
+      {/* Summary row */}
+      <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.72rem', flexWrap: 'wrap' }}>
         <div><span style={{ color: 'var(--text-muted)' }}>Pts after (in): </span><span style={{ color: 'var(--green-bright)', fontWeight: 600 }}>{transfer.points_in_after}</span></div>
         <div><span style={{ color: 'var(--text-muted)' }}>Pts after (out): </span><span style={{ color: 'var(--red-bright)', fontWeight: 600 }}>{transfer.points_out_after}</span></div>
-        <div><span style={{ color: 'var(--text-muted)' }}>Delta: </span><span style={{ fontWeight: 600, color: transfer.delta > 0 ? 'var(--green-bright)' : transfer.delta < 0 ? 'var(--red-bright)' : 'var(--text-muted)' }}>{transfer.delta > 0 ? '+' : ''}{transfer.delta}</span></div>
+        <div><span style={{ color: 'var(--text-muted)' }}>Delta: </span><span style={{ fontWeight: 600, color: deltaColor(transfer.delta) }}>{transfer.delta > 0 ? '+' : ''}{transfer.delta}</span></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ color: 'var(--text-muted)' }}>Fixture swap: </span>
+          <SmartScoreBadge score={transfer.smart_score} />
+        </div>
       </div>
-      <div style={{ marginBottom: '0.5rem', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-        Points per GW after transfer
-      </div>
-      <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={chartData} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-          <XAxis dataKey="gw" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
-          <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
-          <Tooltip contentStyle={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} labelStyle={{ color: 'var(--text-muted)' }} />
-          <Legend wrapperStyle={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem' }} />
-          <Line type="monotone" dataKey={transfer.web_name_in}  stroke="var(--green-bright)" strokeWidth={2} dot={{ r: 3 }} name={`↑ ${transfer.web_name_in}`} />
-          <Line type="monotone" dataKey={transfer.web_name_out} stroke="var(--red-bright)"   strokeWidth={2} dot={{ r: 3 }} name={`↓ ${transfer.web_name_out}`} />
-        </LineChart>
-      </ResponsiveContainer>
+
+      {/* FDR context */}
+      {(transfer.fdr_in !== null || transfer.fdr_out !== null) && (
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Avg FDR next 3:</span>
+          {transfer.fdr_in  !== null && <FdrPip fdr={transfer.fdr_in}  label={`↑ ${transfer.web_name_in}`} />}
+          {transfer.fdr_out !== null && <FdrPip fdr={transfer.fdr_out} label={`↓ ${transfer.web_name_out}`} />}
+          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+            ({transfer.pos_in} — {transfer.pos_in === 'GKP' || transfer.pos_in === 'DEF' ? 'opp. attack' : 'opp. defence'})
+          </span>
+        </div>
+      )}
+
+      {/* Archived flag notes */}
+      {(transfer.flag_in || transfer.flag_out) && (
+        <div style={{ marginBottom: '0.75rem', padding: '0.4rem 0.75rem', background: '#d4a84311', border: '1px solid #d4a84333', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.68rem' }}>
+          <span style={{ color: 'var(--text-muted)', marginRight: '0.5rem' }}>📁 FLAG AT TRANSFER TIME:</span>
+          {transfer.flag_in  && <span style={{ color: '#d4a843', marginRight: '1rem' }}>↑ {transfer.web_name_in}: {transfer.flag_in.level}{transfer.flag_in.news ? ` — ${transfer.flag_in.news}` : ''}</span>}
+          {transfer.flag_out && <span style={{ color: '#d4a843' }}>↓ {transfer.web_name_out}: {transfer.flag_out.level}{transfer.flag_out.news ? ` — ${transfer.flag_out.news}` : ''}</span>}
+        </div>
+      )}
+
+      {/* GW chart */}
+      {chartData.length > 0 ? (
+        <>
+          <div style={{ marginBottom: '0.4rem', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Points per GW after transfer
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={chartData} margin={{ top: 4, right: 16, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="gw" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
+              <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
+              <Tooltip contentStyle={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} labelStyle={{ color: 'var(--text-muted)' }} />
+              <Legend wrapperStyle={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem' }} />
+              <Line type="monotone" dataKey={transfer.web_name_in}  stroke="var(--green-bright)" strokeWidth={2} dot={{ r: 3 }} name={`↑ ${transfer.web_name_in}`} />
+              <Line type="monotone" dataKey={transfer.web_name_out} stroke="var(--red-bright)"   strokeWidth={2} dot={{ r: 3 }} name={`↓ ${transfer.web_name_out}`} />
+            </LineChart>
+          </ResponsiveContainer>
+        </>
+      ) : (
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          No gameweek data available yet.
+        </div>
+      )}
     </td>
   );
 }
@@ -933,17 +1024,14 @@ function TransferChart({ transfer }) {
 function SortTh({ label, sortKey, sort, dir, onSort, style: extraStyle = {} }) {
   const active = sort === sortKey;
   return (
-    <th
-      onClick={() => onSort(sortKey)}
-      style={{
-        padding: '0.5rem 0.75rem', textAlign: 'left', cursor: 'pointer',
-        color: active ? 'var(--gold-bright)' : 'var(--text-muted)',
-        fontWeight: active ? 600 : 400, fontSize: '0.7rem',
-        fontFamily: "'IBM Plex Mono', monospace", textTransform: 'uppercase',
-        letterSpacing: '0.08em', userSelect: 'none', whiteSpace: 'nowrap',
-        ...extraStyle,
-      }}
-    >
+    <th onClick={() => onSort(sortKey)} style={{
+      padding: '0.5rem 0.75rem', textAlign: 'left', cursor: 'pointer',
+      color: active ? 'var(--gold-bright)' : 'var(--text-muted)',
+      fontWeight: active ? 600 : 400, fontSize: '0.7rem',
+      fontFamily: "'IBM Plex Mono', monospace", textTransform: 'uppercase',
+      letterSpacing: '0.08em', userSelect: 'none', whiteSpace: 'nowrap',
+      ...extraStyle,
+    }}>
       {label} {active ? (dir === 'desc' ? '↓' : '↑') : ''}
     </th>
   );
@@ -971,7 +1059,6 @@ export function TransfersPage() {
   if (!data)   return null;
 
   const { all_transfers, best_transfer, worst_transfer, manager_summary } = data;
-
   const managers = ['ALL', ...new Set(all_transfers.map(t => t.manager))];
 
   const filtered = all_transfers
@@ -998,9 +1085,13 @@ export function TransfersPage() {
     <div className="fade-up">
       <div style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '2.5rem', marginBottom: '0.25rem' }}>Transfer Analytics</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Delta = points scored by player_in vs player_out after the transfer gameweek</p>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          Delta = points scored by player_in vs player_out after the transfer gameweek ·
+          Smart Score = fixture quality of the swap (FDR-based, position-aware)
+        </p>
       </div>
 
+      {/* View toggle */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         {[['all', 'All Transfers'], ['summary', 'Manager Summary']].map(([v, l]) => (
           <button key={v} onClick={() => setView(v)} style={{
@@ -1014,6 +1105,7 @@ export function TransfersPage() {
         ))}
       </div>
 
+      {/* Best / Worst callouts */}
       {(best_transfer || worst_transfer) && (
         <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
           {best_transfer && (
@@ -1037,8 +1129,10 @@ export function TransfersPage() {
         </div>
       )}
 
+      {/* ── ALL TRANSFERS ── */}
       {view === 'all' && (
         <div className="card" style={{ padding: 0 }}>
+          {/* Filters */}
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Filter:</span>
             <select value={mgrFilter} onChange={e => setMgrFilter(e.target.value)} style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', color: 'var(--text-primary)', padding: '0.3rem 0.6rem', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', cursor: 'pointer' }}>
@@ -1065,12 +1159,12 @@ export function TransfersPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-gold)' }}>
                   <th style={{ width: 32 }} />
-                  <SortTh label="GW"      sortKey="gw"             sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="Manager" sortKey="manager"         sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="Type"    sortKey="kind"            sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="↑ In"    sortKey="web_name_in"     sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="↓ Out"   sortKey="web_name_out"    sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="Delta"   sortKey="delta"           sort={sort} dir={sortDir} onSort={handleSort} style={{ textAlign: 'right' }} />
+                  <SortTh label="GW"      sortKey="gw"           sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="Manager" sortKey="manager"       sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="Type"    sortKey="kind"          sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="↑ In"    sortKey="web_name_in"   sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="↓ Out"   sortKey="web_name_out"  sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="Delta"   sortKey="delta"         sort={sort} dir={sortDir} onSort={handleSort} style={{ textAlign: 'right' }} />
                 </tr>
               </thead>
               <tbody>
@@ -1087,10 +1181,10 @@ export function TransfersPage() {
                         <span className={`badge ${t.kind === 'w' ? 'badge--draw' : 'badge--win'}`}>{t.kind === 'w' ? 'Waiver' : 'Free Agent'}</span>
                       </td>
                       <td style={{ padding: '0.5rem 0.6rem', color: 'var(--green-bright)', whiteSpace: 'nowrap' }}>
-                        ↑ {t.web_name_in}<PosBadge pos={t.pos_in} /><TeamTag team={t.team_in} /><FlagBadge flag={t.flag_in} />
+                        ↑ {t.web_name_in}<PosBadge pos={t.pos_in} /><TeamTag team={t.team_in} /><FlagBadge flag={t.flag_in} archived={t.flag_in_archived} />
                       </td>
                       <td style={{ padding: '0.5rem 0.6rem', color: 'var(--red-bright)', whiteSpace: 'nowrap' }}>
-                        ↓ {t.web_name_out}<PosBadge pos={t.pos_out} /><TeamTag team={t.team_out} /><FlagBadge flag={t.flag_out} />
+                        ↓ {t.web_name_out}<PosBadge pos={t.pos_out} /><TeamTag team={t.team_out} /><FlagBadge flag={t.flag_out} archived={t.flag_out_archived} />
                       </td>
                       <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', fontWeight: 600, color: deltaColor(t.delta) }}>{t.delta > 0 ? '+' : ''}{t.delta}</td>
                     </tr>
@@ -1102,11 +1196,7 @@ export function TransfersPage() {
                   </React.Fragment>
                 ))}
                 {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No transfers match the current filters.
-                    </td>
-                  </tr>
+                  <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No transfers match the current filters.</td></tr>
                 )}
               </tbody>
             </table>
@@ -1114,13 +1204,14 @@ export function TransfersPage() {
         </div>
       )}
 
+      {/* ── MANAGER SUMMARY ── */}
       {view === 'summary' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {[...manager_summary].sort((a, b) => b.net_delta - a.net_delta).map(mgr => {
             const m = getManager(managerMap, mgr.team_id);
             return (
               <div key={mgr.manager} style={{
-                display: 'grid', gridTemplateColumns: '40px 1fr auto auto auto',
+                display: 'grid', gridTemplateColumns: '40px 1fr auto auto auto auto',
                 alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem',
                 background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 6,
                 borderLeft: `3px solid ${mgr.net_delta >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'}`,
@@ -1132,9 +1223,15 @@ export function TransfersPage() {
                   <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: '1rem', color: 'var(--text-primary)' }}>{mgr.manager}</div>
                   <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>{mgr.total_moves} transfer{mgr.total_moves !== 1 ? 's' : ''}</div>
                 </div>
+                {/* Net delta */}
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>NET DELTA</div>
                   <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: mgr.net_delta >= 0 ? 'var(--green-bright)' : 'var(--red-bright)' }}>{mgr.net_delta > 0 ? '+' : ''}{mgr.net_delta}</div>
+                </div>
+                {/* Hit rate */}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>HIT RATE</div>
+                  <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', color: mgr.hit_rate >= 50 ? 'var(--green-bright)' : 'var(--red-bright)' }}>{mgr.hit_rate}%</div>
                 </div>
                 {mgr.best_transfer && (
                   <div style={{ textAlign: 'right' }}>
@@ -1159,6 +1256,7 @@ export function TransfersPage() {
   );
 }
 
+
 /* ══════════════════════════════════════════
    TRANSFER STATS PAGE
 ══════════════════════════════════════════ */
@@ -1173,13 +1271,22 @@ export function TransferStatsPage() {
   if (error)   return <ErrorMsg message={error} />;
   if (!data)   return null;
 
-  const { by_position, by_team, by_manager, by_gw, busiest_gw } = data;
+  const { by_position, by_team, by_manager, by_gw, busiest_gw, regret_board } = data;
 
   const posChartData     = by_position.map(p => ({ pos: p.position, In: p.in || 0, Out: p.out || 0 }));
   const teamChartDataIn  = by_team.slice(0, 10).map(t => ({ team: t.pl_team, Attack: t.in.attack,  Defense: t.in.defense  }));
   const teamChartDataOut = by_team.slice(0, 10).map(t => ({ team: t.pl_team, Attack: t.out.attack, Defense: t.out.defense }));
-  const mgrChartData     = by_manager.map(m => ({ manager: m.manager, Transfers: m.count }));
   const gwChartData      = by_gw.map(g => ({ gw: `GW${g.gw}`, Transfers: g.count }));
+
+  // Hit rate bar chart data
+  const hitRateData = by_position.map(p => ({
+    pos:      p.position,
+    'Hit %':  p.hit_rate || 0,
+    'Avg Δ':  p.avg_delta || 0,
+  }));
+
+  // Manager scorecard data (sorted by net_delta)
+  const mgrScorecardData = [...by_manager].sort((a, b) => b.net_delta - a.net_delta);
 
   const TT = {
     contentStyle: { background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' },
@@ -1190,9 +1297,10 @@ export function TransferStatsPage() {
     <div className="fade-up">
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2.5rem', marginBottom: '0.25rem' }}>Transfer Stats</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Patterns and trends across all accepted transfers this season</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Patterns, hit rates, and fixture intelligence across all accepted transfers</p>
       </div>
 
+      {/* Busiest GW callout */}
       {busiest_gw && (
         <div className="card" style={{ borderLeft: '3px solid var(--gold-bright)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           <div>
@@ -1206,8 +1314,95 @@ export function TransferStatsPage() {
         </div>
       )}
 
+      {/* ── Manager scorecard ───────────────────────────────────────────────── */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <SectionHeader title="Transfers by Position" sub="How many IN and OUT per position" />
+        <SectionHeader title="Manager Transfer Scorecard" sub="Net delta, hit rate, and total moves" />
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.8rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-gold)' }}>
+                {['Manager', 'Moves', 'Net Δ', 'Hit Rate', '+ Moves', '− Moves'].map(h => (
+                  <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: h === 'Manager' ? 'left' : 'right', color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.7rem', textTransform: 'uppercase' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {mgrScorecardData.map(mgr => {
+                const m = Object.values(managerMap || {}).find(x => x.name === mgr.manager);
+                return (
+                  <tr key={mgr.manager} style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: m?.color || 'var(--border)', flexShrink: 0 }} />
+                      {mgr.manager}
+                    </td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{mgr.count}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', fontWeight: 600, color: mgr.net_delta >= 0 ? 'var(--green-bright)' : 'var(--red-bright)' }}>
+                      {mgr.net_delta > 0 ? '+' : ''}{mgr.net_delta}
+                    </td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right' }}>
+                      {/* Hit rate bar */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                        <div style={{ width: 60, height: 6, background: 'var(--bg-hover)', borderRadius: 3 }}>
+                          <div style={{ height: '100%', width: `${mgr.hit_rate}%`, background: mgr.hit_rate >= 50 ? 'var(--green-bright)' : 'var(--red-bright)', borderRadius: 3 }} />
+                        </div>
+                        <span style={{ color: mgr.hit_rate >= 50 ? 'var(--green-bright)' : 'var(--red-bright)', minWidth: 36, textAlign: 'right' }}>{mgr.hit_rate}%</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: 'var(--green-bright)' }}>{mgr.positive_moves}</td>
+                    <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: 'var(--red-bright)' }}>{mgr.count - mgr.positive_moves}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Hit rate + avg delta by position ────────────────────────────────── */}
+      <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
+        <div className="card">
+          <SectionHeader title="Hit Rate by Position" sub="% of transfers with positive delta (player IN)" />
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={hitRateData} margin={{ top: 4, right: 16, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="pos" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fill: 'var(--text-muted)' }} />
+              <YAxis domain={[0, 100]} tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} unit="%" />
+              <Tooltip {...TT} formatter={v => `${v}%`} />
+              <ReferenceLine y={50} stroke="var(--border-gold)" strokeDasharray="4 2" />
+              <Bar dataKey="Hit %" radius={[3, 3, 0, 0]}>
+                {hitRateData.map((entry, i) => (
+                  <Cell key={i} fill={entry['Hit %'] >= 50 ? 'var(--green-bright)' : 'var(--red-bright)'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="card">
+          <SectionHeader title="Avg Delta by Position" sub="Average points gained per transfer (player IN position)" />
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={hitRateData} margin={{ top: 4, right: 16, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="pos" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fill: 'var(--text-muted)' }} />
+              <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
+              <Tooltip {...TT} />
+              <ReferenceLine y={0} stroke="var(--border-gold)" strokeDasharray="4 2" />
+              <Bar dataKey="Avg Δ" radius={[3, 3, 0, 0]}>
+                {hitRateData.map((entry, i) => (
+                  <Cell key={i} fill={entry['Avg Δ'] >= 0 ? 'var(--green-bright)' : 'var(--red-bright)'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ── Volume: positions ────────────────────────────────────────────────── */}
+      <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <SectionHeader title="Transfer Volume by Position" sub="IN and OUT counts" />
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={posChartData} margin={{ top: 4, right: 16, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -1221,10 +1416,11 @@ export function TransferStatsPage() {
         </ResponsiveContainer>
       </div>
 
+      {/* ── Team IN/OUT ──────────────────────────────────────────────────────── */}
       <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
         <div className="card">
-          <SectionHeader title="Teams — Transferred IN" sub="Attack (MID+FWD) vs Defense (GKP+DEF)" />
-          <ResponsiveContainer width="100%" height={220}>
+          <SectionHeader title="Teams — Transferred IN" sub="Attack (MID+FWD) vs Defence (GKP+DEF)" />
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={teamChartDataIn} layout="vertical" margin={{ top: 4, right: 16, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
               <XAxis type="number" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
@@ -1237,8 +1433,8 @@ export function TransferStatsPage() {
           </ResponsiveContainer>
         </div>
         <div className="card">
-          <SectionHeader title="Teams — Transferred OUT" sub="Attack (MID+FWD) vs Defense (GKP+DEF)" />
-          <ResponsiveContainer width="100%" height={220}>
+          <SectionHeader title="Teams — Transferred OUT" sub="Attack (MID+FWD) vs Defence (GKP+DEF)" />
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={teamChartDataOut} layout="vertical" margin={{ top: 4, right: 16, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
               <XAxis type="number" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
@@ -1252,24 +1448,46 @@ export function TransferStatsPage() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <SectionHeader title="Transfers by Manager" sub="Total accepted moves this season" />
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={mgrChartData} margin={{ top: 4, right: 16, left: -10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-            <XAxis dataKey="manager" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
-            <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
-            <Tooltip {...TT} />
-            <Bar dataKey="Transfers" radius={[3, 3, 0, 0]}>
-              {mgrChartData.map((entry, i) => {
-                const m = Object.values(managerMap || {}).find(x => x.name === entry.manager);
-                return <Cell key={i} fill={m?.color || 'var(--gold-mid)'} />;
-              })}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {/* ── Regret board ─────────────────────────────────────────────────────── */}
+      {regret_board?.length > 0 && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <SectionHeader title="😬 Regret Board" sub="Transfers where the dropped player outscored the pickup — top 10" />
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.78rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-gold)' }}>
+                  {['#', 'Manager', 'GW', '↑ In', '↓ Out', 'Pts In', 'Pts Out', 'Regret'].map((h, i) => (
+                    <th key={h} style={{ padding: '0.4rem 0.6rem', textAlign: i >= 5 ? 'right' : 'left', color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.7rem', textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {regret_board.map((r, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>{i + 1}</td>
+                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)' }}>{r.manager}</td>
+                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--text-muted)' }}>GW{r.gw}</td>
+                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--green-bright)', whiteSpace: 'nowrap' }}>
+                      {r.player_in} <PosBadge pos={r.pos_in} />
+                    </td>
+                    <td style={{ padding: '0.4rem 0.6rem', color: 'var(--red-bright)', whiteSpace: 'nowrap' }}>
+                      {r.player_out} <PosBadge pos={r.pos_out} />
+                    </td>
+                    <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{r.pts_in}</td>
+                    <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{r.pts_out}</td>
+                    <td style={{ padding: '0.4rem 0.6rem', textAlign: 'right', fontWeight: 700, color: 'var(--red-bright)' }}>−{r.pts_out - r.pts_in}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
+      {/* ── GW activity ─────────────────────────────────────────────────────── */}
       <div className="card">
         <SectionHeader title="Transfer Activity by Gameweek" sub="Busiest and quietest weeks of the season" />
         <ResponsiveContainer width="100%" height={200}>
@@ -1289,7 +1507,6 @@ export function TransferStatsPage() {
     </div>
   );
 }
-
 /* ══════════════════════════════════════════
    RECORDS PAGE
 ══════════════════════════════════════════ */
