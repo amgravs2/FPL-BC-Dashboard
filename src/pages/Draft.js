@@ -164,34 +164,34 @@ export default function DraftPage() {
       )}
 
       {view === 'busts' && (
-        <div>
-          <SectionHeader title="Biggest Busts" sub="Top-6-round picks who underperformed" />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {busts.map((p, i) => {
-              const m   = getManager(managerMap, p.team_id);
-              const col = posColor[p.position] || 'var(--text-muted)';
-              return (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2rem 40px 1fr auto auto', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 6, borderLeft: '3px solid var(--red)' }}>
-                  <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: 'var(--red-bright)', textAlign: 'center' }}>{i + 1}</div>
-                  <Avatar teamId={p.team_id} size={32} />
-                  <div>
-                    <div style={{ color: 'var(--text-primary)', fontFamily: "'Crimson Pro', serif", fontSize: '1rem' }}>{p.player_name}</div>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: p.value_score > 0 ? 'var(--green-bright)' : 'var(--red-bright)' }}>
-                      {p.value_score > 0 ? '+' : ''}{p.value_score} vs median
-                    </div>
-                      <span style={{ color: col }}>{p.position}</span> · Pick #{p.overall_pick} · {m.initials}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--red-bright)' }}>{p.season_points}</div>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)' }}>pts</div>
-                  </div>
-                </div>
-              );
-            })}
+  <div>
+    <SectionHeader title="Biggest Busts" sub="Top-6-round picks who underperformed" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      {busts.map((p, i) => {
+        const m   = getManager(managerMap, p.team_id);
+        const col = posColor[p.position] || 'var(--text-muted)';
+        return (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2rem 40px 1fr auto', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 6, borderLeft: '3px solid var(--red)' }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', color: 'var(--red-bright)', textAlign: 'center' }}>{i + 1}</div>
+            <Avatar teamId={p.team_id} size={32} />
+            <div>
+              <div style={{ color: 'var(--text-primary)', fontFamily: "'Crimson Pro', serif", fontSize: '1rem' }}>{p.player_name}</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                <span style={{ color: col }}>{p.position}</span> · Pick #{p.overall_pick} · {m.initials}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.5rem', fontWeight: 700, color: 'var(--red-bright)' }}>{p.season_points}</div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: p.value_score > 0 ? 'var(--green-bright)' : 'var(--red-bright)' }}>
+                {p.value_score > 0 ? '+' : ''}{p.value_score} vs median
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })}
+    </div>
+  </div>
+)}
 
       {view === 'rounds' && round_medians && (
         <div>
