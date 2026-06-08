@@ -41,7 +41,7 @@ export default function DraftPage() {
   const orderedTeams = round1.map(p => p.team_id);
 
   const posColor = { GKP: '#7eb8d4', DEF: '#5a9e64', MID: '#d4a843', FWD: '#c07a5a' };
-
+  const { picks, value_picks, busts, round_medians, composition, dna } = data;
   return (
     <div className="fade-up">
       <div style={{ marginBottom: '2rem' }}>
@@ -130,6 +130,19 @@ export default function DraftPage() {
               ))}
             </tbody>
           </table>
+              {/* Total Draft Points footer */}
+          <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: `60px ${orderedTeams.map(() => '1fr').join(' ')}`, gap: 0, borderTop: '1px solid var(--border-gold)', paddingTop: '0.75rem' }}>
+            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', paddingLeft: '0.75rem', display: 'flex', alignItems: 'center' }}>Total</div>
+            {orderedTeams.map(tid => {
+              const total = picks.filter(p => p.team_id === tid).reduce((s, p) => s + p.season_points, 0);
+              const maxTotal = Math.max(...orderedTeams.map(t => picks.filter(p => p.team_id === t).reduce((s, p) => s + p.season_points, 0)));
+              return (
+                <div key={tid} style={{ textAlign: 'center', padding: '0.25rem 0.5rem' }}>
+                  <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.1rem', fontWeight: 700, color: total === maxTotal ? 'var(--gold-bright)' : 'var(--text-primary)' }}>{total}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -221,43 +234,123 @@ export default function DraftPage() {
         </div>
       )}
 
-      {view === 'composition' && composition && (
-        <div>
-          <SectionHeader title="Team Composition" sub="Positions drafted per manager and total draft points" />
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.82rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-gold)' }}>
-                  {['Manager', 'GKP', 'DEF', 'MID', 'FWD', 'Total Draft Pts'].map(h => (
-                    <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: h === 'Manager' ? 'left' : 'center', color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[...composition].sort((a, b) => b.total_points - a.total_points).map(row => {
-                  const m = getManager(managerMap, row.team_id);
-                  const posColor = { GKP: '#7eb8d4', DEF: '#5a9e64', MID: '#d4a843', FWD: '#c07a5a' };
-                  return (
-                    <tr key={row.team_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '0.6rem 0.75rem' }}>
-                        <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: m.color, fontWeight: 600 }}>{m.initials}</span>
-                      </td>
-                      {['GKP', 'DEF', 'MID', 'FWD'].map(pos => (
-                        <td key={pos} style={{ padding: '0.6rem 0.75rem', textAlign: 'center' }}>
-                          <span style={{ color: posColor[pos], fontWeight: 600 }}>{row[pos] || 0}</span>
-                        </td>
-                      ))}
-                      <td style={{ padding: '0.6rem 0.75rem', textAlign: 'center', color: 'var(--gold-bright)', fontWeight: 700, fontFamily: "'Playfair Display', serif", fontSize: '1rem' }}>
-                        {row.total_points}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {view === 'dna' && dna && (() => {
+  const { round_pair_counts, mean_round_rows, club_bias } = dna;
+
+  // top clubs by total picks league-wide (for bias chart)
+  const clubTotals = {};
+  picks.forEach(p => { clubTotals[p.pl_team] = (clubTotals[p.pl_team] || 0) + 1; });
+  const topClubs = Object.entries(clubTotals).sort((a,b) => b[1]-a[1]).slice(0,8).map(([c]) => c);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+      {/* Chart 1 — Position picks by round pair */}
+      <div>
+        <SectionHeader title="When Positions Get Drafted" sub="Count of picks by position across round pairs — league-wide" />
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={round_pair_counts} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" strokeOpacity={0.3} />
+            <XAxis dataKey="group" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10 }} tickLine={false} />
+            <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+            <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-gold)', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} />
+            <Bar dataKey="GKP" fill={posColor.GKP} radius={[2,2,0,0]} />
+            <Bar dataKey="DEF" fill={posColor.DEF} radius={[2,2,0,0]} />
+            <Bar dataKey="MID" fill={posColor.MID} radius={[2,2,0,0]} />
+            <Bar dataKey="FWD" fill={posColor.FWD} radius={[2,2,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+        {/* Legend */}
+        <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', marginTop: '0.5rem' }}>
+          {['GKP','DEF','MID','FWD'].map(pos => (
+            <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor[pos] }} />
+              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>{pos}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart 2 — Mean draft round per position per manager */}
+      <div>
+        <SectionHeader title="Draft Tendencies" sub="Average round each manager drafts each position" />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {mean_round_rows.sort((a,b) => (a.GKP||15)-(b.GKP||15)).map(row => {
+            const m = getManager(managerMap, row.team_id);
+            return (
+              <div key={row.team_id} style={{ display: 'grid', gridTemplateColumns: '3rem 1fr', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: m.color, textAlign: 'right' }}>{m.initials}</span>
+                <div style={{ position: 'relative', height: 28 }}>
+                  <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'var(--border)', transform: 'translateY(-50%)' }} />
+                  {['GKP','DEF','MID','FWD'].map(pos => {
+                    const rnd = row[pos];
+                    if (!rnd) return null;
+                    const left = `${((rnd - 1) / 14) * 100}%`;
+                    return (
+                      <div key={pos} title={`${pos}: Rd ${rnd}`} style={{
+                        position: 'absolute', top: '50%', left,
+                        transform: 'translate(-50%, -50%)',
+                        width: 10, height: 10, borderRadius: '50%',
+                        background: posColor[pos],
+                        border: '1px solid var(--bg-base)',
+                        cursor: 'default',
+                      }} />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {/* X-axis labels */}
+          <div style={{ display: 'grid', gridTemplateColumns: '3rem 1fr', gap: '0.75rem' }}>
+            <div />
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              {[1,3,5,7,9,11,13,15].map(r => (
+                <span key={r} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: 'var(--text-muted)' }}>{r}</span>
+              ))}
+            </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Chart 3 — Club bias: attack vs defence per manager */}
+      <div>
+        <SectionHeader title="Club Bias" sub="Top clubs drafted — split by attack (MID+FWD) vs defence (GKP+DEF)" />
+        {club_bias.map(({ team_id, clubs }) => {
+          const m = getManager(managerMap, team_id);
+          const rows = topClubs
+            .map(club => ({ club, ...(clubs[club] || { attack: 0, defence: 0 }) }))
+            .filter(r => r.attack + r.defence > 0);
+          if (!rows.length) return null;
+          return (
+            <div key={team_id} style={{ marginBottom: '1.25rem' }}>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: m.color, marginBottom: '0.4rem' }}>{m.initials}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                {rows.map(({ club, attack, defence }) => (
+                  <div key={club} style={{ display: 'grid', gridTemplateColumns: '3.5rem 1fr', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'right' }}>{club}</span>
+                    <div style={{ display: 'flex', height: 14, borderRadius: 3, overflow: 'hidden', background: 'var(--bg-hover)' }}>
+                      {attack > 0 && <div style={{ flex: attack, background: posColor.MID, opacity: 0.85 }} title={`Attack: ${attack}`} />}
+                      {defence > 0 && <div style={{ flex: defence, background: posColor.DEF, opacity: 0.85 }} title={`Defence: ${defence}`} />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor.MID }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>Attack (MID+FWD)</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor.DEF }} />
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>Defence (GKP+DEF)</span>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
-}
+})()}
