@@ -6,7 +6,7 @@ import { ManagerProvider } from './ManagerContext';
 import OverviewPage from './pages/Overview';
 import ManagerPage  from './pages/Manager';
 import DraftPage    from './pages/Draft';
-import { PlayersPage, PlayerDrillPage, TransfersPage, RecordsPage, AllTimePage } from './pages/OtherPages';
+import { PlayersPage, PlayerDrillPage, TransfersPage, TransferStatsPage, RecordsPage, AllTimePage } from './pages/OtherPages';
 import ToolsPage from './pages/Tools';
 import './index.css';
 
@@ -28,6 +28,7 @@ function AppContent() {
           <Route path="/players"                 element={<PlayersPage />} />
           <Route path="/players/:playerId"       element={<PlayerDrillPage />} />
           <Route path="/transfers"               element={<TransfersPage />} />
+          <Route path="/transfer-stats" element={<TransferStatsPage />} />
           <Route path="/records"                 element={<RecordsPage />} />
           <Route path="/alltime"                 element={<AllTimePage />} />
           <Route path="/tools"                   element={<ToolsPage />} />
