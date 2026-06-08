@@ -855,13 +855,6 @@ export function PlayerDrillPage() {
 ══════════════════════════════════════════ */
 
 // FDR color scale (same as Players + Tools pages)
-function fdrColor(fdr) {
-  if (!fdr) return { bg: 'var(--bg-raised)', border: 'var(--border)', text: 'var(--text-muted)' };
-  if (fdr <= 2) return { bg: '#0d2b0d', border: '#2d6b2d', text: '#6bcf6b' };
-  if (fdr === 3) return { bg: '#2b2200', border: '#6b5500', text: '#d4a843' };
-  if (fdr === 4) return { bg: '#2b0d0d', border: '#6b2020', text: '#e06060' };
-  return { bg: '#1a0505', border: '#8b1515', text: '#c03030' };
-}
 
 function FdrPip({ fdr, label }) {
   const c = fdrColor(Math.round(fdr));
