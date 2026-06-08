@@ -203,7 +203,7 @@ function GwStatsPanel({ playerId, seasonId, colSpan }) {
   );
   if (!data?.length) return (
     <td colSpan={colSpan} style={{ padding: '0.75rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }}>
-      No GW data yet this season
+      No GW data for this season — run /sync/stats/{gw} or /sync/element-summaries to populate
     </td>
   );
 
@@ -335,7 +335,7 @@ export function PlayersPage() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Search player or club (full name ok)…"
+          placeholder="Search player or club…"
           style={{
             background: 'var(--bg-raised)', border: '1px solid var(--border)',
             color: 'var(--text-primary)', padding: '0.4rem 0.75rem',
@@ -562,7 +562,7 @@ export function PlayerDrillPage() {
   const [expandedSeason, setExpandedSeason] = useState(null);
   const [drillTab, setDrillTab]             = useState('overview'); // 'overview' | 'opponents' | 'ownership'
 
-  const { data, loading, error } = useApi(`/player/${playerId}/drill`, [playerId]);
+  const { data, loading, error } = useApi(`/query/player/${playerId}/drill`, [playerId]);
 
   if (loading) return <Loading />;
   if (error)   return <ErrorMsg message={error} />;
@@ -578,21 +578,26 @@ export function PlayerDrillPage() {
     gwBySeason[r.season_name].push(r);
   });
 
-  // Group ownership by season
+  // Group ownership by season — supports from_gw/to_gw ranges (new table)
+  // and legacy per-GW rows (gameweek_lineups fallback)
   const ownBySeason = {};
   ownership_history.forEach(r => {
     if (!ownBySeason[r.season_name]) ownBySeason[r.season_name] = [];
     ownBySeason[r.season_name].push(r);
   });
 
-  // Build a per-season ownership summary (distinct owners)
+  // Build per-season ownership summary. New format has from_gw/to_gw ranges.
   const ownSummaryBySeason = {};
   Object.entries(ownBySeason).forEach(([season, rows]) => {
     const owners = {};
     rows.forEach(r => {
       const key = r.team_id;
-      if (!owners[key]) owners[key] = { owner: r.owner, team_name: r.team_name, team_id: r.team_id, gws: [] };
-      owners[key].gws.push(r.gw);
+      if (!owners[key]) owners[key] = { owner: r.owner, team_name: r.team_name, team_id: r.team_id, spans: [] };
+      if (r.from_gw !== undefined && r.from_gw !== null) {
+        owners[key].spans.push({ from: r.from_gw, to: r.to_gw || 38 });
+      } else if (r.gw !== undefined) {
+        owners[key].spans.push({ from: r.gw, to: r.gw });
+      }
     });
     ownSummaryBySeason[season] = Object.values(owners);
   });
@@ -833,36 +838,37 @@ export function PlayerDrillPage() {
                     {/* Per-owner summary */}
                     {summaries.map(s => {
                       const m = getManager(managerMap, s.team_id);
-                      const gwRange = s.gws.length
-                        ? `GW${Math.min(...s.gws)}–GW${Math.max(...s.gws)} (${s.gws.length} gws)`
-                        : '';
+                      const totalGws = s.spans.reduce((acc, sp) => acc + (sp.to - sp.from + 1), 0);
+                      const spanLabel = s.spans.map(sp =>
+                        sp.from === sp.to ? `GW${sp.from}` : `GW${sp.from}–${sp.to}`
+                      ).join(', ');
                       return (
                         <div key={s.team_id} style={{
                           display: 'flex', alignItems: 'center', gap: '0.75rem',
-                          padding: '0.4rem 0', borderBottom: '1px solid var(--border)',
+                          padding: '0.5rem 0', borderBottom: '1px solid var(--border)',
                         }}>
                           <Avatar teamId={s.team_id} size={24} />
-                          <div>
+                          <div style={{ flex: 1 }}>
                             <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                               {s.owner} <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>({s.team_name})</span>
                             </div>
-                            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                              {gwRange}
+                            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                              {spanLabel} · {totalGws} gw{totalGws !== 1 ? 's' : ''}
                             </div>
-                          </div>
-                          {/* GW dots */}
-                          <div style={{ marginLeft: 'auto', display: 'flex', gap: 2, flexWrap: 'wrap', maxWidth: 240 }}>
-                            {s.gws.map(gw => (
-                              <span key={gw} style={{
-                                display: 'inline-block', width: 20, height: 14,
-                                background: 'var(--bg-raised)', border: '1px solid var(--border)',
-                                borderRadius: 2, textAlign: 'center',
-                                fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.55rem',
-                                color: 'var(--text-muted)', lineHeight: '14px',
-                              }}>
-                                {gw}
-                              </span>
-                            ))}
+                            {/* Ownership span bar — 38 GW timeline */}
+                            <div style={{ marginTop: 4, position: 'relative', height: 8, background: 'var(--bg-raised)', borderRadius: 4, overflow: 'hidden' }}>
+                              {s.spans.map((sp, i) => (
+                                <div key={i} style={{
+                                  position: 'absolute',
+                                  left: `${((sp.from - 1) / 38) * 100}%`,
+                                  width: `${((sp.to - sp.from + 1) / 38) * 100}%`,
+                                  height: '100%',
+                                  background: m.color || 'var(--gold-mid)',
+                                  borderRadius: 2,
+                                  opacity: 0.8,
+                                }} />
+                              ))}
+                            </div>
                           </div>
                         </div>
                       );
