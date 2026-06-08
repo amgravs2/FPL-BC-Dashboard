@@ -190,7 +190,7 @@ function TeamFilterDropdown({ teams, selected, onChange }) {
 }
 
 /* ── GW Stats Expanded Panel (replaces historic) ── */
-function GwStatsPanel({ playerId, seasonId, colSpan }) {
+function GwStatsPanel({ playerId, seasonId, colSpan, position }) {
   const { data, loading } = useApi(
     `/query/season/${seasonId}/player/${playerId}/gw-stats`,
     [playerId, seasonId]
@@ -207,7 +207,7 @@ function GwStatsPanel({ playerId, seasonId, colSpan }) {
     </td>
   );
 
-  const headers = ['GW', 'Pts', 'G', 'A', 'CS', 'Sv', 'DC', 'Bon', 'Min', '🟨', '🟥', 'Owner'];
+  const headers = ['GW', 'Opp', 'Pts', 'G', 'A', 'CS', 'Sv', 'DC', 'Bon', 'Min', '🟨', '🟥', 'Owner'];
 
   return (
     <td colSpan={colSpan} style={{ padding: 0 }}>
@@ -233,12 +233,21 @@ function GwStatsPanel({ playerId, seasonId, colSpan }) {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   <td style={{ padding: '0.25rem 0.5rem', color: 'var(--text-secondary)' }}>GW{row.gw}</td>
+                  <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.68rem', whiteSpace: 'nowrap' }}>
+                    {row.opponent_short ? `${row.opponent_short} ${row.was_home ? 'H' : 'A'}` : '—'}
+                  </td>
                   <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.total_points >= 8 ? '#6bcf6b' : row.total_points === 0 ? 'var(--text-muted)' : 'var(--text-primary)', fontWeight: row.total_points >= 8 ? 700 : 400 }}>{row.total_points}</td>
                   <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.goals > 0 ? '#d4a843' : 'var(--text-muted)' }}>{row.goals || '—'}</td>
                   <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.assists > 0 ? '#d4a843' : 'var(--text-muted)' }}>{row.assists || '—'}</td>
-                  <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.clean_sheets > 0 ? '#7eb8d4' : 'var(--text-muted)' }}>{row.clean_sheets > 0 ? '✓' : '—'}</td>
+                  <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.clean_sheets > 0 ? '#7eb8d4' : 'var(--text-muted)' }}>
+                    {/* CS: not applicable for FWD */}
+                    {position === 'FWD' ? <span style={{color:'var(--text-muted)',fontSize:'0.6rem'}}>n/a</span> : row.clean_sheets > 0 ? '✓' : '—'}
+                  </td>
                   <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{row.saves || '—'}</td>
-                  <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.defensive_contribution > 0 ? '#5a9e64' : 'var(--text-muted)' }}>{row.defensive_contribution || '—'}</td>
+                  <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.defensive_contribution > 0 ? '#5a9e64' : 'var(--text-muted)' }}>
+                    {/* DC: only DEF and MID */}
+                    {(position === 'GKP' || position === 'FWD') ? <span style={{color:'var(--text-muted)',fontSize:'0.6rem'}}>n/a</span> : row.defensive_contribution || '—'}
+                  </td>
                   <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{row.bonus || '—'}</td>
                   <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.minutes === 0 ? 'var(--text-muted)' : 'var(--text-secondary)' }}>{row.minutes}</td>
                   <td style={{ padding: '0.25rem 0.5rem', textAlign: 'center', color: row.yellow_cards > 0 ? '#d4a843' : 'var(--text-muted)' }}>{row.yellow_cards || '—'}</td>
@@ -306,6 +315,7 @@ export function PlayersPage() {
 
   const COLS = [
     { key: 'total_points',          label: 'Pts'   },
+    { key: 'avg_pts_5gw',           label: 'Avg5'  },
     { key: 'goals',                 label: 'G'     },
     { key: 'assists',               label: 'A'     },
     { key: 'clean_sheets',          label: 'CS'    },
@@ -318,8 +328,8 @@ export function PlayersPage() {
     { key: 'blank_gws',             label: 'Blank' },
   ];
 
-  // Total columns: rank(1) + name(1) + pos(1) + owner(1) + fdr(1) + stats(11) + drill(1) = 17
-  const TOTAL_COLS = 17;
+  // Total columns: rank(1) + name(1) + pos(1) + owner(1) + fdr(1) + stats(12) + drill(1) = 18
+  const TOTAL_COLS = 18;
 
   return (
     <div className="fade-up">
@@ -506,6 +516,7 @@ export function PlayersPage() {
                         playerId={player.player_id}
                         seasonId={seasonId}
                         colSpan={TOTAL_COLS}
+                        position={player.position}
                       />
                     </tr>
                   )}
@@ -781,7 +792,7 @@ export function PlayerDrillPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.78rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border-gold)' }}>
-                    {['Opponent', 'Apps', 'Pts', 'G', 'A', 'CS', 'Bon', 'Min', 'Pts/App'].map(h => (
+                    {['Opponent', 'Apps', 'Pts', 'G', 'A', 'CS', 'Sv', 'Bon', 'Min', 'Pts/App'].map(h => (
                       <th key={h} style={{ padding: '0.4rem 0.5rem', textAlign: h === 'Opponent' ? 'left' : 'center', color: 'var(--text-muted)', fontWeight: 500 }}>{h}</th>
                     ))}
                   </tr>
@@ -803,6 +814,7 @@ export function PlayerDrillPage() {
                       <td style={{ padding: '0.4rem', textAlign: 'center', color: opp.goals > 0 ? '#d4a843' : 'var(--text-muted)' }}>{opp.goals || '—'}</td>
                       <td style={{ padding: '0.4rem', textAlign: 'center', color: opp.assists > 0 ? '#d4a843' : 'var(--text-muted)' }}>{opp.assists || '—'}</td>
                       <td style={{ padding: '0.4rem', textAlign: 'center', color: opp.clean_sheets > 0 ? '#7eb8d4' : 'var(--text-muted)' }}>{opp.clean_sheets || '—'}</td>
+                      <td style={{ padding: '0.4rem', textAlign: 'center', color: opp.saves > 0 ? '#7eb8d4' : 'var(--text-muted)' }}>{opp.saves || '—'}</td>
                       <td style={{ padding: '0.4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{opp.bonus || '—'}</td>
                       <td style={{ padding: '0.4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>{opp.minutes}</td>
                       <td style={{ padding: '0.4rem', textAlign: 'center', color: 'var(--gold-mid)', fontWeight: 500 }}>
@@ -820,59 +832,109 @@ export function PlayerDrillPage() {
       {/* ── Ownership History ── */}
       {drillTab === 'ownership' && (
         <div className="card">
-          <SectionHeader title="Ownership History" sub="Who owned this player each season & GW across all seasons" />
+          <SectionHeader title="Ownership History" sub="Points scored per GW · coloured by who owned the player that week" />
           {Object.keys(ownBySeason).length === 0 ? (
             <p style={{ color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.8rem' }}>
-              No ownership data available.
+              No ownership data available. Run /sync/ownership to populate.
             </p>
           ) : (
             Object.entries(ownBySeason)
               .sort(([a], [b]) => b.localeCompare(a))
               .map(([season, rows]) => {
-                const summaries = ownSummaryBySeason[season] || [];
+                const gwStats = (gwBySeason[season] || []);
+                if (!gwStats.length) return null;
+
+                // Build owner → color map for this season
+                const ownerColors = {};
+                (ownSummaryBySeason[season] || []).forEach(s => {
+                  const m = getManager(managerMap, s.team_id);
+                  ownerColors[s.team_id] = m?.color || '#888';
+                });
+                const FA_COLOR = '#555';
+
+                // Build chart data: one point per GW
+                // For each GW, find who owned the player (from ownership spans)
+                const getOwnerAtGw = (gw) => {
+                  for (const r of rows) {
+                    const from = r.from_gw ?? r.gw;
+                    const to   = r.to_gw ?? r.gw;
+                    if (gw >= from && gw <= to) return r;
+                  }
+                  return null;
+                };
+
+                const chartData = gwStats.map(g => {
+                  const ownerRow = getOwnerAtGw(g.gw);
+                  return {
+                    gw:      g.gw,
+                    pts:     g.total_points,
+                    owner:   ownerRow?.owner || 'Free Agent',
+                    teamId:  ownerRow?.team_id || null,
+                    color:   ownerRow ? (ownerColors[ownerRow.team_id] || '#888') : FA_COLOR,
+                  };
+                });
+
+                // Unique owners for legend
+                const legendEntries = [];
+                const seen = new Set();
+                chartData.forEach(d => {
+                  if (!seen.has(d.owner)) {
+                    seen.add(d.owner);
+                    legendEntries.push({ owner: d.owner, color: d.color });
+                  }
+                });
+
+                const maxPts = Math.max(...chartData.map(d => d.pts), 1);
+
                 return (
-                  <div key={season} style={{ marginBottom: '1.5rem' }}>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.8rem', color: 'var(--gold-bright)', marginBottom: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.4rem' }}>
+                  <div key={season} style={{ marginBottom: '2rem' }}>
+                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.8rem', color: 'var(--gold-bright)', marginBottom: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.4rem' }}>
                       {season}
                     </div>
-                    {/* Per-owner summary */}
-                    {summaries.map(s => {
-                      const m = getManager(managerMap, s.team_id);
-                      const totalGws = s.spans.reduce((acc, sp) => acc + (sp.to - sp.from + 1), 0);
-                      const spanLabel = s.spans.map(sp =>
-                        sp.from === sp.to ? `GW${sp.from}` : `GW${sp.from}–${sp.to}`
-                      ).join(', ');
-                      return (
-                        <div key={s.team_id} style={{
-                          display: 'flex', alignItems: 'center', gap: '0.75rem',
-                          padding: '0.5rem 0', borderBottom: '1px solid var(--border)',
-                        }}>
-                          <Avatar teamId={s.team_id} size={24} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-                              {s.owner} <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>({s.team_name})</span>
-                            </div>
-                            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                              {spanLabel} · {totalGws} gw{totalGws !== 1 ? 's' : ''}
-                            </div>
-                            {/* Ownership span bar — 38 GW timeline */}
-                            <div style={{ marginTop: 4, position: 'relative', height: 8, background: 'var(--bg-raised)', borderRadius: 4, overflow: 'hidden' }}>
-                              {s.spans.map((sp, i) => (
-                                <div key={i} style={{
-                                  position: 'absolute',
-                                  left: `${((sp.from - 1) / 38) * 100}%`,
-                                  width: `${((sp.to - sp.from + 1) / 38) * 100}%`,
-                                  height: '100%',
-                                  background: m.color || 'var(--gold-mid)',
-                                  borderRadius: 2,
-                                  opacity: 0.8,
-                                }} />
-                              ))}
-                            </div>
-                          </div>
+
+                    {/* Legend */}
+                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                      {legendEntries.map(e => (
+                        <div key={e.owner} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: e.color }} />
+                          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{e.owner}</span>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
+
+                    {/* Bar chart — one bar per GW coloured by owner */}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 120, padding: '0 4px' }}>
+                      {chartData.map(d => (
+                        <div key={d.gw} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                          <div
+                            title={`GW${d.gw} · ${d.pts} pts · ${d.owner}`}
+                            style={{
+                              width: '100%',
+                              height: `${Math.max((d.pts / maxPts) * 100, d.pts > 0 ? 4 : 1)}%`,
+                              background: d.color,
+                              borderRadius: '2px 2px 0 0',
+                              opacity: d.pts === 0 ? 0.2 : 0.85,
+                              transition: 'opacity 0.15s',
+                              cursor: 'default',
+                              minHeight: 2,
+                            }}
+                          />
+                          {chartData.length <= 20 && (
+                            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.5rem', color: 'var(--text-muted)', transform: 'rotate(-45deg)', transformOrigin: 'top center', marginTop: 2 }}>
+                              {d.gw}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* X-axis label strip for longer seasons */}
+                    {chartData.length > 20 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                        {[1, 10, 20, 30, 38].map(gw => (
+                          <span key={gw} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: 'var(--text-muted)' }}>GW{gw}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })
