@@ -903,30 +903,38 @@ export function PlayerDrillPage() {
                     </div>
 
                     {/* Bar chart — one bar per GW coloured by owner */}
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 120, padding: '0 4px' }}>
-                      {chartData.map(d => (
-                        <div key={d.gw} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                          <div
-                            title={`GW${d.gw} · ${d.pts} pts · ${d.owner}`}
-                            style={{
-                              width: '100%',
-                              height: `${Math.max((d.pts / maxPts) * 100, d.pts > 0 ? 4 : 1)}%`,
-                              background: d.color,
-                              borderRadius: '2px 2px 0 0',
-                              opacity: d.pts === 0 ? 0.2 : 0.85,
-                              transition: 'opacity 0.15s',
-                              cursor: 'default',
-                              minHeight: 2,
-                            }}
-                          />
-                          {chartData.length <= 20 && (
-                            <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.5rem', color: 'var(--text-muted)', transform: 'rotate(-45deg)', transformOrigin: 'top center', marginTop: 2 }}>
-                              {d.gw}
-                            </div>
-                          )}
+                    {(() => {
+                      const CHART_H = 110; // px, the drawable bar area
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: CHART_H + (chartData.length <= 20 ? 18 : 0), padding: '0 4px', borderBottom: '1px solid var(--border)' }}>
+                          {chartData.map(d => {
+                            const barH = d.pts > 0
+                              ? Math.max(Math.round((d.pts / maxPts) * CHART_H), 4)
+                              : 1;
+                            return (
+                              <div key={d.gw} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                                <div
+                                  title={`GW${d.gw} · ${d.pts} pts · ${d.owner}`}
+                                  style={{
+                                    width: '100%',
+                                    height: barH,
+                                    background: d.color,
+                                    borderRadius: '2px 2px 0 0',
+                                    opacity: d.pts === 0 ? 0.15 : 0.85,
+                                    flexShrink: 0,
+                                  }}
+                                />
+                                {chartData.length <= 20 && (
+                                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.5rem', color: 'var(--text-muted)', transform: 'rotate(-45deg)', transformOrigin: 'top center', marginTop: 2, height: 14, flexShrink: 0 }}>
+                                    {d.gw}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
+                      );
+                    })()}
                     {/* X-axis label strip for longer seasons */}
                     {chartData.length > 20 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
