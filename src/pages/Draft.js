@@ -111,7 +111,7 @@ export default function DraftPage() {
                               <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: 'var(--text-muted)' }}>#{pick.overall_pick}</span>
                               <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', fontWeight: 600, color: pick.value_score > 20 ? 'var(--green-bright)' : pick.value_score < -20 ? 'var(--red-bright)' : pct > 0.7 ? 'var(--gold-bright)' : 'var(--text-primary)' }}>{pick.season_points}</span>
                             </div>
-                            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: '0.2rem' }}>{pick.player_name.split(' ').pop()}</div>
+                            <div style={{ fontFamily: "'Crimson Pro', serif", fontSize: '0.8rem', color: 'var(--text-primary)', lineHeight: 1.2, marginBottom: '0.2rem', textAlign: 'center', width: '100%' }}>{pick.player_name.split(' ').pop()}</div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: col }}>{pick.position}</span>
                               {pick.value_score !== undefined && (
@@ -176,7 +176,9 @@ export default function DraftPage() {
                   <Avatar teamId={p.team_id} size={32} />
                   <div>
                     <div style={{ color: 'var(--text-primary)', fontFamily: "'Crimson Pro', serif", fontSize: '1rem' }}>{p.player_name}</div>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: p.value_score > 0 ? 'var(--green-bright)' : 'var(--red-bright)' }}>
+                      {p.value_score > 0 ? '+' : ''}{p.value_score} vs median
+                    </div>
                       <span style={{ color: col }}>{p.position}</span> · Pick #{p.overall_pick} · {m.initials}
                     </div>
                   </div>
