@@ -204,14 +204,15 @@ export function TransfersPage() {
   const seasonId       = searchParams.get('season') || 1;
   const [view, setView] = useState('summary');
 
+  const [mgrFilter, setMgrFilter] = useState('ALL');
+  const [posFilter, setPosFilter] = useState('ALL');
+
   const { data, loading, error } = useApi(`/query/season/${seasonId}/transfers`, [seasonId]);
 
   if (loading) return <Loading />;
   if (error)   return <ErrorMsg message={error} />;
   if (!data)   return null;
 
-  const [mgrFilter, setMgrFilter] = useState('ALL');
-  const [posFilter, setPosFilter] = useState('ALL');
   const { all_transfers, best_transfer, worst_transfer, manager_summary } = data;
 
   const managers = [...new Set(all_transfers.map(t => t.manager))];
