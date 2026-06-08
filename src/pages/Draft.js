@@ -11,8 +11,9 @@ const MAX_ROUND = 15;
 export default function DraftPage() {
   const managerMap = useManagerMap();
   const [searchParams] = useSearchParams();
-  const seasonId       = searchParams.get('season') || 1;
-  const [view, setView] = useState('board'); // 'board' | 'value' | 'busts' | 'rounds' | 'dna'
+  const seasonId     = searchParams.get('season') || 1;
+  const [view, setView]             = useState('board');
+  const [biasManager, setBiasManager] = useState(null);
 
   const { data, loading, error } = useApi(`/query/season/${seasonId}/draft`, [seasonId]);
 
@@ -20,13 +21,11 @@ export default function DraftPage() {
   if (error)   return <ErrorMsg message={error} />;
   if (!data)   return null;
 
-  const { picks, value_picks, busts, round_medians, composition, dna } = data;
+  const { picks, value_picks, busts, round_medians, dna } = data;
   const TEAM_IDS = [...new Set(picks.map(p => p.team_id))];
 
-  // Max points among all picks for bar scaling
   const maxPts = Math.max(...picks.map(p => p.season_points));
 
-  // Build round × manager grid
   const grid = {};
   for (let r = 1; r <= MAX_ROUND; r++) {
     grid[r] = {};
@@ -36,13 +35,11 @@ export default function DraftPage() {
     if (grid[p.round]) grid[p.round][p.team_id] = p;
   });
 
-  // Sort team IDs by draft order (pick order in round 1)
   const round1 = picks.filter(p => p.round === 1).sort((a, b) => a.overall_pick - b.overall_pick);
   const orderedTeams = round1.map(p => p.team_id);
 
   const posColor = { GKP: '#7eb8d4', DEF: '#5a9e64', MID: '#d4a843', FWD: '#c07a5a' };
 
-  // Pre-compute total points per manager for the board footer
   const totalByTeam = {};
   orderedTeams.forEach(tid => {
     totalByTeam[tid] = picks.filter(p => p.team_id === tid).reduce((s, p) => s + p.season_points, 0);
@@ -108,7 +105,6 @@ export default function DraftPage() {
                           borderRadius: 4, padding: '0.4rem 0.5rem',
                           position: 'relative', overflow: 'hidden',
                         }}>
-                          {/* Points bar */}
                           <div style={{
                             position: 'absolute', bottom: 0, left: 0, right: 0,
                             height: `${pct * 100}%`, maxHeight: '100%',
@@ -243,155 +239,144 @@ export default function DraftPage() {
       )}
 
       {/* ── DRAFT DNA ── */}
-      {view === 'dna' && dna && (() => {
-        const { round_pair_counts, mean_round_rows, club_bias } = dna;
+      {view === 'dna' && dna && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
-        // Top clubs by total picks league-wide (for bias chart)
-        const clubTotals = {};
-        picks.forEach(p => { clubTotals[p.pl_team] = (clubTotals[p.pl_team] || 0) + 1; });
-        const topClubs = Object.entries(clubTotals).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([c]) => c);
-
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-
-            {/* Chart 1 — Position picks by round pair */}
-            <div>
-              <SectionHeader title="When Positions Get Drafted" sub="Count of picks by position across round pairs — league-wide" />
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={round_pair_counts} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
-                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" strokeOpacity={0.3} />
-                  <XAxis dataKey="group" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10 }} tickLine={false} />
-                  <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-gold)', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} />
-                  <Bar dataKey="GKP" fill={posColor.GKP} radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="DEF" fill={posColor.DEF} radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="MID" fill={posColor.MID} radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="FWD" fill={posColor.FWD} radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-              <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', marginTop: '0.5rem' }}>
-                {['GKP', 'DEF', 'MID', 'FWD'].map(pos => (
-                  <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor[pos] }} />
-                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>{pos}</span>
-                  </div>
-                ))}
-              </div>
+          {/* Chart 1 — Position picks by round pair */}
+          <div>
+            <SectionHeader title="When Positions Get Drafted" sub="Count of picks by position across round pairs — league-wide" />
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={dna.round_pair_counts} margin={{ top: 5, right: 10, bottom: 5, left: -10 }}>
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" strokeOpacity={0.3} />
+                <XAxis dataKey="group" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10 }} tickLine={false} />
+                <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-gold)', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} />
+                <Bar dataKey="GKP" fill={posColor.GKP} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="DEF" fill={posColor.DEF} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="MID" fill={posColor.MID} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="FWD" fill={posColor.FWD} radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div style={{ display: 'flex', gap: '1.25rem', justifyContent: 'center', marginTop: '0.5rem' }}>
+              {['GKP', 'DEF', 'MID', 'FWD'].map(pos => (
+                <div key={pos} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor[pos] }} />
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>{pos}</span>
+                </div>
+              ))}
             </div>
+          </div>
 
-            {/* Chart 2 — Mean draft round per position per manager */}
-            <div>
-              <SectionHeader title="Draft Tendencies" sub="Average round each manager drafts each position" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                {mean_round_rows.sort((a, b) => (a.GKP || 15) - (b.GKP || 15)).map(row => {
-                  const m = getManager(managerMap, row.team_id);
-                  return (
-                    <div key={row.team_id} style={{ display: 'grid', gridTemplateColumns: '3rem 1fr', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: m.color, textAlign: 'right' }}>{m.initials}</span>
-                      <div style={{ position: 'relative', height: 28 }}>
-                        <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'var(--border)', transform: 'translateY(-50%)' }} />
-                        {['GKP', 'DEF', 'MID', 'FWD'].map(pos => {
-                          const rnd = row[pos];
-                          if (!rnd) return null;
-                          const left = `${((rnd - 1) / 14) * 100}%`;
-                          return (
-                            <div key={pos} title={`${pos}: Rd ${rnd}`} style={{
-                              position: 'absolute', top: '50%', left,
-                              transform: 'translate(-50%, -50%)',
-                              width: 10, height: 10, borderRadius: '50%',
-                              background: posColor[pos],
-                              border: '1px solid var(--bg-base)',
-                              cursor: 'default',
-                            }} />
-                          );
-                        })}
-                      </div>
+          {/* Chart 2 — Mean draft round per position per manager */}
+          <div>
+            <SectionHeader title="Draft Tendencies" sub="Average round each manager drafts each position" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {dna.mean_round_rows.sort((a, b) => (a.GKP || 15) - (b.GKP || 15)).map(row => {
+                const m = getManager(managerMap, row.team_id);
+                return (
+                  <div key={row.team_id} style={{ display: 'grid', gridTemplateColumns: '3rem 1fr', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: m.color, textAlign: 'right' }}>{m.initials}</span>
+                    <div style={{ position: 'relative', height: 28 }}>
+                      <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: 1, background: 'var(--border)', transform: 'translateY(-50%)' }} />
+                      {['GKP', 'DEF', 'MID', 'FWD'].map(pos => {
+                        const rnd = row[pos];
+                        if (!rnd) return null;
+                        const left = `${((rnd - 1) / 14) * 100}%`;
+                        return (
+                          <div key={pos} title={`${pos}: Rd ${rnd}`} style={{
+                            position: 'absolute', top: '50%', left,
+                            transform: 'translate(-50%, -50%)',
+                            width: 10, height: 10, borderRadius: '50%',
+                            background: posColor[pos],
+                            border: '1px solid var(--bg-base)',
+                            cursor: 'default',
+                          }} />
+                        );
+                      })}
                     </div>
-                  );
-                })}
-                {/* X-axis labels */}
-                <div style={{ display: 'grid', gridTemplateColumns: '3rem 1fr', gap: '0.75rem' }}>
-                  <div />
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    {[1, 3, 5, 7, 9, 11, 13, 15].map(r => (
-                      <span key={r} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: 'var(--text-muted)' }}>{r}</span>
-                    ))}
                   </div>
+                );
+              })}
+              {/* X-axis labels */}
+              <div style={{ display: 'grid', gridTemplateColumns: '3rem 1fr', gap: '0.75rem' }}>
+                <div />
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  {[1, 3, 5, 7, 9, 11, 13, 15].map(r => (
+                    <span key={r} style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: 'var(--text-muted)' }}>{r}</span>
+                  ))}
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Chart 3 — Club bias: attack vs defence per manager */}
-         {/* Chart 3 — Club bias: attack vs defence */}
-{(() => {
-  const { league_club_bias } = dna;
-  const [biasManager, setBiasManager] = React.useState(null);
+          {/* Chart 3 — Club bias */}
+          <div>
+            <SectionHeader title="Club Bias" sub="Players drafted by PL club — attack (MID+FWD) vs defence (GKP+DEF)" />
 
-  // Build chart data: league-wide or filtered to one manager
-  let chartData;
-  if (biasManager) {
-    const mgr = club_bias.find(r => r.team_id === biasManager);
-    const clubs = mgr ? mgr.clubs : {};
-    chartData = league_club_bias.map(({ club }) => ({
-      club,
-      attack:  clubs[club]?.attack  || 0,
-      defence: clubs[club]?.defence || 0,
-    })).filter(r => r.attack + r.defence > 0);
-  } else {
-    chartData = league_club_bias;
-  }
+            {/* Manager filter pills */}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <button onClick={() => setBiasManager(null)} style={{
+                padding: '0.25rem 0.75rem', borderRadius: 12, cursor: 'pointer',
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem',
+                background: biasManager === null ? 'var(--gold-dim)' : 'var(--bg-raised)',
+                border: `1px solid ${biasManager === null ? 'var(--gold-mid)' : 'var(--border)'}`,
+                color: biasManager === null ? 'var(--gold-bright)' : 'var(--text-secondary)',
+              }}>All</button>
+              {dna.club_bias.map(({ team_id }) => {
+                const m = getManager(managerMap, team_id);
+                return (
+                  <button key={team_id} onClick={() => setBiasManager(biasManager === team_id ? null : team_id)} style={{
+                    padding: '0.25rem 0.75rem', borderRadius: 12, cursor: 'pointer',
+                    fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem',
+                    background: biasManager === team_id ? 'var(--gold-dim)' : 'var(--bg-raised)',
+                    border: `1px solid ${biasManager === team_id ? 'var(--gold-mid)' : 'var(--border)'}`,
+                    color: biasManager === team_id ? m.color : 'var(--text-secondary)',
+                  }}>{m.initials}</button>
+                );
+              })}
+            </div>
 
-  return (
-    <div>
-      <SectionHeader title="Club Bias" sub="Players drafted by PL club — attack (MID+FWD) vs defence (GKP+DEF)" />
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart
+                data={(() => {
+                  if (biasManager) {
+                    const mgr = dna.club_bias.find(r => r.team_id === biasManager);
+                    const clubs = mgr ? mgr.clubs : {};
+                    return dna.league_club_bias
+                      .map(({ club }) => ({
+                        club,
+                        attack:  clubs[club]?.attack  || 0,
+                        defence: clubs[club]?.defence || 0,
+                      }))
+                      .filter(r => r.attack + r.defence > 0);
+                  }
+                  return dna.league_club_bias;
+                })()}
+                margin={{ top: 5, right: 10, bottom: 30, left: -10 }}
+              >
+                <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" strokeOpacity={0.3} />
+                <XAxis dataKey="club" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9 }} tickLine={false} angle={-45} textAnchor="end" interval={0} />
+                <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-gold)', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} />
+                <Bar dataKey="attack"  name="Attack (MID+FWD)"  fill={posColor.MID} radius={[2, 2, 0, 0]} />
+                <Bar dataKey="defence" name="Defence (GKP+DEF)" fill={posColor.DEF} radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
 
-      {/* Manager filter pills */}
-      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-        <button onClick={() => setBiasManager(null)} style={{
-          padding: '0.25rem 0.75rem', borderRadius: 12, cursor: 'pointer',
-          fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem',
-          background: biasManager === null ? 'var(--gold-dim)' : 'var(--bg-raised)',
-          border: `1px solid ${biasManager === null ? 'var(--gold-mid)' : 'var(--border)'}`,
-          color: biasManager === null ? 'var(--gold-bright)' : 'var(--text-secondary)',
-        }}>All</button>
-        {club_bias.map(({ team_id }) => {
-          const m = getManager(managerMap, team_id);
-          return (
-            <button key={team_id} onClick={() => setBiasManager(team_id === biasManager ? null : team_id)} style={{
-              padding: '0.25rem 0.75rem', borderRadius: 12, cursor: 'pointer',
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem',
-              background: biasManager === team_id ? 'var(--gold-dim)' : 'var(--bg-raised)',
-              border: `1px solid ${biasManager === team_id ? 'var(--gold-mid)' : 'var(--border)'}`,
-              color: biasManager === team_id ? m.color : 'var(--text-secondary)',
-            }}>{m.initials}</button>
-          );
-        })}
-      </div>
+            <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor.MID }} />
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>Attack (MID+FWD)</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor.DEF }} />
+                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>Defence (GKP+DEF)</span>
+              </div>
+            </div>
+          </div>
 
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={chartData} margin={{ top: 5, right: 10, bottom: 30, left: -10 }}>
-          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" strokeOpacity={0.3} />
-          <XAxis dataKey="club" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 9 }} tickLine={false} angle={-45} textAnchor="end" interval={0} />
-          <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-gold)', borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} />
-          <Bar dataKey="attack"  name="Attack (MID+FWD)"  fill={posColor.MID} radius={[2, 2, 0, 0]} />
-          <Bar dataKey="defence" name="Defence (GKP+DEF)" fill={posColor.DEF} radius={[2, 2, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-
-      <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor.MID }} />
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>Attack (MID+FWD)</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-          <div style={{ width: 10, height: 10, borderRadius: 2, background: posColor.DEF }} />
-          <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>Defence (GKP+DEF)</span>
-        </div>
-      </div>
-    </div>
-  );
-})()}
+      )}
 
     </div>
   );
