@@ -34,8 +34,12 @@ export function PlayersPage() {
     { key: 'goals',        label: 'G' },
     { key: 'assists',      label: 'A' },
     { key: 'clean_sheets', label: 'CS' },
+    { key: 'saves',        label: 'Sv' },
     { key: 'bonus',        label: 'Bon' },
+    { key: 'yellow_cards', label: '🟨' },
+    { key: 'red_cards',    label: '🟥' },
     { key: 'minutes',      label: 'Min' },
+    { key: 'blank_gws',    label: 'Blank' },
   ];
 
   return (
@@ -97,13 +101,18 @@ export function PlayersPage() {
               const col = posColor[player.position] || 'var(--text-muted)';
               const ownerM = player.owner_team_id ? getManager(managerMap, player.owner_team_id) : null;
               return (
-                <tr key={player.player_id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.1s' }}
+                <tr key={player.player_id}
+                  style={{ borderBottom: expandedPlayer === player.player_id ? 'none' : '1px solid var(--border)', transition: 'background 0.1s', cursor: 'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  onMouseLeave={e => e.currentTarget.style.background = expandedPlayer === player.player_id ? 'var(--bg-raised)' : 'transparent'}
+                  onClick={() => setExpandedPlayer(expandedPlayer === player.player_id ? null : player.player_id)}
                 >
                   <td style={{ padding: '0.5rem 0.75rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{i + 1}</td>
                   <td style={{ padding: '0.5rem 0.75rem' }}>
-                    <div style={{ color: 'var(--text-primary)', fontFamily: "'Crimson Pro', serif", fontSize: '0.95rem' }}>{player.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <div style={{ color: 'var(--text-primary)', fontFamily: "'Crimson Pro', serif", fontSize: '0.95rem' }}>{player.name}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', transition: 'transform 0.2s', transform: expandedPlayer === player.player_id ? 'rotate(180deg)' : 'none' }}>▾</div>
+                    </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{player.pl_team}</div>
                   </td>
                   <td style={{ padding: '0.5rem', textAlign: 'center' }}>
@@ -124,6 +133,11 @@ export function PlayersPage() {
                     </td>
                   ))}
                 </tr>
+                {expandedPlayer === player.player_id && (
+                  <tr style={{ background: 'var(--bg-raised)', borderBottom: '1px solid var(--border)' }}>
+                    <PlayerHistoryPanel playerId={player.player_id} />
+                  </tr>
+                )}
               );
             })}
           </tbody>
@@ -153,7 +167,19 @@ export function TransfersPage() {
   if (error)   return <ErrorMsg message={error} />;
   if (!data)   return null;
 
+  const [mgrFilter, setMgrFilter] = useState('ALL');
+  const [posFilter, setPosFilter] = useState('ALL');
   const { all_transfers, best_transfer, worst_transfer, manager_summary } = data;
+
+  const managers = [...new Set(all_transfers.map(t => t.manager))];
+  const positions = ['ALL', 'GKP', 'DEF', 'MID', 'FWD'];
+  const posColor  = { GKP: '#7eb8d4', DEF: '#5a9e64', MID: '#d4a843', FWD: '#c07a5a' };
+
+  // We'd need player position data in transfers to filter by position
+  // For now filter by manager only
+  const filteredTransfers = all_transfers.filter(t =>
+    (mgrFilter === 'ALL' || t.manager === mgrFilter)
+  );
 
   return (
     <div className="fade-up">
@@ -238,6 +264,19 @@ export function TransfersPage() {
       )}
 
       {view === 'all' && (
+        <div>
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>Manager:</span>
+            {['ALL', ...managers].map(m => (
+              <button key={m} onClick={() => setMgrFilter(m)} style={{
+                padding: '0.25rem 0.6rem', borderRadius: 4, cursor: 'pointer',
+                fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.72rem',
+                background: mgrFilter === m ? 'var(--gold-dim)' : 'var(--bg-raised)',
+                border: `1px solid ${mgrFilter === m ? 'var(--gold-mid)' : 'var(--border)'}`,
+                color: mgrFilter === m ? 'var(--gold-bright)' : 'var(--text-secondary)',
+              }}>{m}</button>
+            ))}
+          </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.8rem' }}>
             <thead>
@@ -248,7 +287,7 @@ export function TransfersPage() {
               </tr>
             </thead>
             <tbody>
-              {all_transfers.map((tx, i) => (
+              {filteredTransfers.map((tx, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -438,7 +477,7 @@ export function AllTimePage() {
     <div className="fade-up">
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '2.5rem', marginBottom: '0.25rem' }}>All Time</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Cross-season records and history · More seasons coming soon</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Cross-season records and history</p>
       </div>
 
       {/* Historic finishes */}
