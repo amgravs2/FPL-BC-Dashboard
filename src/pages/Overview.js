@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
@@ -14,7 +14,6 @@ const MEDAL = ['🥇', '🥈', '🥉'];
 /* ── Standings Table ── */
 function StandingsTable({ data, seasonId }) {
   const managerMap = useManagerMap();
-  const navigate = useNavigate();
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.85rem' }}>
@@ -347,11 +346,11 @@ function ResultsGrid({ data, seasonId }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
                   <div style={{ borderRight: '1px solid var(--border)' }}>
                     <div style={{ padding: '0.5rem 1rem', background: `${m1.color}18`, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: m1.color }}>{m1.initials} lineup</div>
-                    <LineupPanel seasonId={seasonId} teamId={match.entry_1_id} gw={gw} />
+                    <LineupPanel seasonId={seasonId} teamId={match.entry_1_fpl_id} gw={gw} />
                   </div>
                   <div>
                     <div style={{ padding: '0.5rem 1rem', background: `${m2.color}18`, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: m2.color }}>{m2.initials} lineup</div>
-                    <LineupPanel seasonId={seasonId} teamId={match.entry_2_id} gw={gw} />
+                    <LineupPanel seasonId={seasonId} teamId={match.entry_2_fpl_id} gw={gw} />
                   </div>
                 </div>
               )}
