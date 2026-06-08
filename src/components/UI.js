@@ -99,6 +99,7 @@ const NAV_ITEMS = [
   { to: '/transfers',  label: 'Transfers' },
   { to: '/records',    label: 'Records' },
   { to: '/alltime',    label: 'All Time' },
+  { to: '/transfer-stats', label: 'Transfer Stats' },
 ];
 
 export function Nav({ seasonId, seasons }) {
