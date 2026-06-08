@@ -203,7 +203,7 @@ function GwStatsPanel({ playerId, seasonId, colSpan }) {
   );
   if (!data?.length) return (
     <td colSpan={colSpan} style={{ padding: '0.75rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }}>
-      No GW data for this season — run /sync/stats/{gw} or /sync/element-summaries to populate
+      No GW data for this season — run /sync/stats/&#123;gw&#125; or /sync/element-summaries to populate
     </td>
   );
 
