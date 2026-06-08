@@ -101,7 +101,8 @@ export function PlayersPage() {
               const col = posColor[player.position] || 'var(--text-muted)';
               const ownerM = player.owner_team_id ? getManager(managerMap, player.owner_team_id) : null;
               return (
-                <tr key={player.player_id}
+                <React.Fragment key={player.player_id}>
+                <tr
                   style={{ borderBottom: expandedPlayer === player.player_id ? 'none' : '1px solid var(--border)', transition: 'background 0.1s', cursor: 'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                   onMouseLeave={e => e.currentTarget.style.background = expandedPlayer === player.player_id ? 'var(--bg-raised)' : 'transparent'}
@@ -138,6 +139,7 @@ export function PlayersPage() {
                     <PlayerHistoryPanel playerId={player.player_id} />
                   </tr>
                 )}
+                </React.Fragment>
               );
             })}
           </tbody>
