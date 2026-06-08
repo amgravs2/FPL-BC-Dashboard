@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid,
@@ -14,6 +14,7 @@ const MEDAL = ['🥇', '🥈', '🥉'];
 /* ── Standings Table ── */
 function StandingsTable({ data, seasonId }) {
   const managerMap = useManagerMap();
+  const navigate = useNavigate();
   return (
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.85rem' }}>
@@ -35,7 +36,7 @@ function StandingsTable({ data, seasonId }) {
               }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                onClick={() => window.location.href = `/manager/${row.team_id}?season=${seasonId}`}
+                onClick={() => navigate(`/manager/${row.team_id}?season=${seasonId}`)}
               >
                 <td style={{ padding: '0.75rem', textAlign: 'center', color: i < 3 ? 'var(--gold-bright)' : 'var(--text-muted)' }}>
                   {MEDAL[i] || row.rank}
@@ -149,19 +150,19 @@ function PointsChart({ data }) {
     );
   };
 
-  // Custom dot — only render on the last data point as an initials circle
-  const CustomDot = ({ cx, cy, dataKey }) => {
+  // Custom dot — only show initials circle at the current frame tip, nothing on trail
+  const CustomDot = ({ cx, cy, dataKey, index }) => {
+    // Only render on the very last visible point
+    if (index !== visible.length - 1) return null;
     const tid = parseInt(dataKey);
     const m   = getManager(managerMap, tid);
-    const lastGwPoint = visible[visible.length - 1];
-    if (!lastGwPoint || lastGwPoint[tid] === undefined) return null;
-    if (lastGwPoint[tid] !== lastPoints[tid]) return null;
+    if (visible[visible.length - 1]?.[tid] === undefined) return null;
     return (
       <g key={`dot-${tid}`}>
-        <circle cx={cx} cy={cy} r={14} fill={m.color} opacity={0.15} />
-        <circle cx={cx} cy={cy} r={10} fill="var(--bg-card)" stroke={m.color} strokeWidth={2} />
-        <text x={cx} y={cy + 4} textAnchor="middle" fill={m.color}
-          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 8, fontWeight: 600 }}>
+        <circle cx={cx} cy={cy} r={13} fill={m.color} opacity={0.15} />
+        <circle cx={cx} cy={cy} r={9} fill="var(--bg-card)" stroke={m.color} strokeWidth={2} />
+        <text x={cx} y={cy + 3} textAnchor="middle" fill={m.color}
+          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 7, fontWeight: 700 }}>
           {m.initials}
         </text>
       </g>
@@ -241,12 +242,54 @@ function PointsChart({ data }) {
   );
 }
 
+/* ── Lineup Panel ── */
+function LineupPanel({ seasonId, teamId, gw }) {
+  const { data, loading } = useApi(`/query/season/${seasonId}/lineup/${teamId}/${gw}`, [seasonId, teamId, gw]);
+  const posColor = { GKP: '#7eb8d4', DEF: '#5a9e64', MID: '#d4a843', FWD: '#c07a5a' };
+
+  if (loading) return <div style={{ padding: '1rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }}>Loading lineup...</div>;
+  if (!data) return null;
+
+  const PlayerRow = ({ p }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr auto auto', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0', borderBottom: '1px solid var(--border)' }}>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: posColor[p.pos] || 'var(--text-muted)', textAlign: 'center', border: `1px solid ${posColor[p.pos] || 'var(--border)'}44`, borderRadius: 2, padding: '0 2px' }}>{p.pos}</span>
+      <span style={{ fontFamily: "'Crimson Pro', serif", fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+        {p.web_name}
+        {p.is_captain && <span style={{ marginLeft: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: 'var(--gold-bright)' }}>©</span>}
+        {p.is_vice_captain && <span style={{ marginLeft: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: 'var(--text-muted)' }}>vc</span>}
+      </span>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+        {p.goals > 0 && `⚽×${p.goals} `}{p.assists > 0 && `🎯×${p.assists} `}{p.bonus > 0 && `⭐${p.bonus}`}
+      </span>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.8rem', fontWeight: 600, color: p.points > 0 ? 'var(--text-primary)' : 'var(--text-muted)', minWidth: 24, textAlign: 'right' }}>
+        {p.is_captain ? p.points * (p.multiplier || 2) : p.points}
+      </span>
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', padding: '1rem 1.25rem', background: 'var(--bg-deep)', borderTop: '1px solid var(--border)' }}>
+      <div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Starting XI</div>
+        {data.starters.map((p, i) => <PlayerRow key={i} p={p} />)}
+      </div>
+      <div>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Bench</div>
+        {data.bench.map((p, i) => <PlayerRow key={i} p={p} />)}
+      </div>
+    </div>
+  );
+}
+
 /* ── Results Grid ── */
-function ResultsGrid({ data }) {
+function ResultsGrid({ data, seasonId }) {
   const managerMap = useManagerMap();
-  const [gw, setGw] = useState(1);
+  const [gw, setGw]         = useState(Math.max(...data.map(d => d.gw)));
+  const [expanded, setExpanded] = useState({});
   const gwData = data.filter(d => d.gw === gw);
   const maxGw  = Math.max(...data.map(d => d.gw));
+
+  const toggleExpand = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
 
   return (
     <div>
@@ -254,7 +297,7 @@ function ResultsGrid({ data }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: '0.5rem' }}>GW</span>
         {Array.from({ length: maxGw }, (_, i) => i + 1).map(g => (
-          <button key={g} onClick={() => setGw(g)} style={{
+          <button key={g} onClick={() => { setGw(g); setExpanded({}); }} style={{
             width: 28, height: 28,
             background: gw === g ? 'var(--gold-dim)' : 'var(--bg-raised)',
             border: `1px solid ${gw === g ? 'var(--gold-mid)' : 'var(--border)'}`,
@@ -268,33 +311,50 @@ function ResultsGrid({ data }) {
       {/* Matches */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {gwData.map((match, i) => {
-          const m1 = getManager(managerMap, match.entry_1_id);
-          const m2 = getManager(managerMap, match.entry_2_id);
-          const winner = match.entry_1_points > match.entry_2_points ? 1
-                       : match.entry_2_points > match.entry_1_points ? 2 : 0;
+          const m1      = getManager(managerMap, match.entry_1_id);
+          const m2      = getManager(managerMap, match.entry_2_id);
+          const winner  = match.entry_1_points > match.entry_2_points ? 1
+                        : match.entry_2_points > match.entry_1_points ? 2 : 0;
+          const key     = `${match.entry_1_id}-${match.entry_2_id}`;
+          const isOpen  = expanded[key];
+
           return (
-            <div key={i} style={{
-              display: 'grid', gridTemplateColumns: '1fr auto 1fr',
-              alignItems: 'center', gap: '1rem',
-              background: 'var(--bg-raised)', border: '1px solid var(--border)',
-              borderRadius: 6, padding: '0.75rem 1rem',
-            }}>
-              {/* Team 1 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'flex-end' }}>
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: m1.color, fontWeight: winner === 1 ? 700 : 400, fontSize: '0.9rem' }}>{m1.initials}</span>
-                <Avatar teamId={match.entry_1_id} size={28} />
+            <div key={i} style={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+              {/* Match row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr auto', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', cursor: 'pointer' }}
+                onClick={() => toggleExpand(key)}>
+                {/* Team 1 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', justifyContent: 'flex-end' }}>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: m1.color, fontWeight: winner === 1 ? 700 : 400, fontSize: '0.9rem' }}>{m1.initials}</span>
+                  <Avatar teamId={match.entry_1_id} size={28} />
+                </div>
+                {/* Score */}
+                <div style={{ textAlign: 'center', fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.05em' }}>
+                  <span style={{ color: winner === 1 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{match.entry_1_points}</span>
+                  <span style={{ color: 'var(--text-muted)', margin: '0 0.3rem', fontSize: '0.9rem' }}>—</span>
+                  <span style={{ color: winner === 2 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{match.entry_2_points}</span>
+                </div>
+                {/* Team 2 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Avatar teamId={match.entry_2_id} size={28} />
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: m2.color, fontWeight: winner === 2 ? 700 : 400, fontSize: '0.9rem' }}>{m2.initials}</span>
+                </div>
+                {/* Chevron */}
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</div>
               </div>
-              {/* Score */}
-              <div style={{ textAlign: 'center', fontFamily: "'Playfair Display', serif", fontSize: '1.2rem', fontWeight: 700, letterSpacing: '0.05em' }}>
-                <span style={{ color: winner === 1 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{match.entry_1_points}</span>
-                <span style={{ color: 'var(--text-muted)', margin: '0 0.3rem', fontSize: '0.9rem' }}>—</span>
-                <span style={{ color: winner === 2 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{match.entry_2_points}</span>
-              </div>
-              {/* Team 2 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <Avatar teamId={match.entry_2_id} size={28} />
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", color: m2.color, fontWeight: winner === 2 ? 700 : 400, fontSize: '0.9rem' }}>{m2.initials}</span>
-              </div>
+              {/* Expandable lineups */}
+              {isOpen && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                  <div style={{ borderRight: '1px solid var(--border)' }}>
+                    <div style={{ padding: '0.5rem 1rem', background: `${m1.color}18`, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: m1.color }}>{m1.initials} lineup</div>
+                    <LineupPanel seasonId={seasonId} teamId={match.entry_1_id} gw={gw} />
+                  </div>
+                  <div>
+                    <div style={{ padding: '0.5rem 1rem', background: `${m2.color}18`, fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: m2.color }}>{m2.initials} lineup</div>
+                    <LineupPanel seasonId={seasonId} teamId={match.entry_2_id} gw={gw} />
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -359,7 +419,7 @@ export default function OverviewPage() {
       {/* Results grid */}
       <div className="card">
         <SectionHeader title="Gameweek Results" sub="Head-to-head results by week" />
-        {results && <ResultsGrid data={results} />}
+        {results && <ResultsGrid data={results} seasonId={seasonId} />}
       </div>
     </div>
   );
