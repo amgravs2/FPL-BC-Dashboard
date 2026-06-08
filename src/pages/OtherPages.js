@@ -892,8 +892,8 @@ function TransferChart({ transfer }) {
       .sort((a, b) => a - b)
       .map(gw => ({
         gw: `GW${gw}`,
-        [transfer.player_in]:  pts[gw].in,
-        [transfer.player_out]: pts[gw].out,
+        [transfer.web_name_in]:  pts[gw].in,
+        [transfer.web_name_out]: pts[gw].out,
       }));
   }, [transfer]);
 
@@ -907,6 +907,11 @@ function TransferChart({ transfer }) {
 
   return (
     <td colSpan={99} style={{ padding: '1.25rem 1.5rem', background: 'var(--bg-base)' }}>
+      <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.72rem' }}>
+        <div><span style={{ color: 'var(--text-muted)' }}>Pts after (in): </span><span style={{ color: 'var(--green-bright)', fontWeight: 600 }}>{transfer.points_in_after}</span></div>
+        <div><span style={{ color: 'var(--text-muted)' }}>Pts after (out): </span><span style={{ color: 'var(--red-bright)', fontWeight: 600 }}>{transfer.points_out_after}</span></div>
+        <div><span style={{ color: 'var(--text-muted)' }}>Delta: </span><span style={{ fontWeight: 600, color: transfer.delta > 0 ? 'var(--green-bright)' : transfer.delta < 0 ? 'var(--red-bright)' : 'var(--text-muted)' }}>{transfer.delta > 0 ? '+' : ''}{transfer.delta}</span></div>
+      </div>
       <div style={{ marginBottom: '0.5rem', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         Points per GW after transfer
       </div>
@@ -917,8 +922,8 @@ function TransferChart({ transfer }) {
           <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
           <Tooltip contentStyle={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} labelStyle={{ color: 'var(--text-muted)' }} />
           <Legend wrapperStyle={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem' }} />
-          <Line type="monotone" dataKey={transfer.player_in}  stroke="var(--green-bright)" strokeWidth={2} dot={{ r: 3 }} name={`↑ ${transfer.player_in}`} />
-          <Line type="monotone" dataKey={transfer.player_out} stroke="var(--red-bright)"   strokeWidth={2} dot={{ r: 3 }} name={`↓ ${transfer.player_out}`} />
+          <Line type="monotone" dataKey={transfer.web_name_in}  stroke="var(--green-bright)" strokeWidth={2} dot={{ r: 3 }} name={`↑ ${transfer.web_name_in}`} />
+          <Line type="monotone" dataKey={transfer.web_name_out} stroke="var(--red-bright)"   strokeWidth={2} dot={{ r: 3 }} name={`↓ ${transfer.web_name_out}`} />
         </LineChart>
       </ResponsiveContainer>
     </td>
@@ -1015,8 +1020,8 @@ export function TransfersPage() {
             <div className="card" style={{ borderLeft: '3px solid var(--green-bright)' }}>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>🏆 Best Transfer</div>
               <div style={{ color: 'var(--green-bright)', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem' }}>+{best_transfer.delta} pts</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>↑ {best_transfer.player_in} <PosBadge pos={best_transfer.pos_in} /> <TeamTag team={best_transfer.team_in} /></div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>↓ {best_transfer.player_out} <PosBadge pos={best_transfer.pos_out} /> <TeamTag team={best_transfer.team_out} /></div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>↑ {best_transfer.web_name_in} <PosBadge pos={best_transfer.pos_in} /> <TeamTag team={best_transfer.team_in} /></div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>↓ {best_transfer.web_name_out} <PosBadge pos={best_transfer.pos_out} /> <TeamTag team={best_transfer.team_out} /></div>
               <div style={{ color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', marginTop: '0.25rem' }}>GW{best_transfer.gw} · {best_transfer.manager}</div>
             </div>
           )}
@@ -1024,8 +1029,8 @@ export function TransfersPage() {
             <div className="card" style={{ borderLeft: '3px solid var(--red-bright)' }}>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>💸 Worst Transfer</div>
               <div style={{ color: 'var(--red-bright)', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem' }}>{worst_transfer.delta} pts</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>↑ {worst_transfer.player_in} <PosBadge pos={worst_transfer.pos_in} /> <TeamTag team={worst_transfer.team_in} /></div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>↓ {worst_transfer.player_out} <PosBadge pos={worst_transfer.pos_out} /> <TeamTag team={worst_transfer.team_out} /></div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>↑ {worst_transfer.web_name_in} <PosBadge pos={worst_transfer.pos_in} /> <TeamTag team={worst_transfer.team_in} /></div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>↓ {worst_transfer.web_name_out} <PosBadge pos={worst_transfer.pos_out} /> <TeamTag team={worst_transfer.team_out} /></div>
               <div style={{ color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', marginTop: '0.25rem' }}>GW{worst_transfer.gw} · {worst_transfer.manager}</div>
             </div>
           )}
@@ -1060,14 +1065,12 @@ export function TransfersPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-gold)' }}>
                   <th style={{ width: 32 }} />
-                  <SortTh label="GW"      sortKey="gw"               sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="Manager" sortKey="manager"           sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="Type"    sortKey="kind"              sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="↑ In"    sortKey="player_in"         sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="↓ Out"   sortKey="player_out"        sort={sort} dir={sortDir} onSort={handleSort} />
-                  <SortTh label="Pts In"  sortKey="points_in_after"   sort={sort} dir={sortDir} onSort={handleSort} style={{ textAlign: 'right' }} />
-                  <SortTh label="Pts Out" sortKey="points_out_after"  sort={sort} dir={sortDir} onSort={handleSort} style={{ textAlign: 'right' }} />
-                  <SortTh label="Delta"   sortKey="delta"             sort={sort} dir={sortDir} onSort={handleSort} style={{ textAlign: 'right' }} />
+                  <SortTh label="GW"      sortKey="gw"             sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="Manager" sortKey="manager"         sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="Type"    sortKey="kind"            sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="↑ In"    sortKey="web_name_in"     sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="↓ Out"   sortKey="web_name_out"    sort={sort} dir={sortDir} onSort={handleSort} />
+                  <SortTh label="Delta"   sortKey="delta"           sort={sort} dir={sortDir} onSort={handleSort} style={{ textAlign: 'right' }} />
                 </tr>
               </thead>
               <tbody>
@@ -1078,19 +1081,17 @@ export function TransfersPage() {
                       onClick={() => setExpanded(prev => prev === t.id ? null : t.id)}
                     >
                       <td style={{ padding: '0.5rem 0 0.5rem 0.75rem', color: 'var(--text-muted)', fontSize: '0.7rem' }}>{expanded === t.id ? '▼' : '▶'}</td>
-                      <td style={{ padding: '0.5rem 0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>GW{t.gw}</td>
-                      <td style={{ padding: '0.5rem 0.75rem', color: 'var(--text-secondary)' }}>{t.manager}</td>
-                      <td style={{ padding: '0.5rem 0.75rem' }}>
-                        <span className={`badge ${t.kind === 'w' ? 'badge--draw' : 'badge--win'}`}>{t.kind === 'w' ? 'Waiver' : 'Trade'}</span>
+                      <td style={{ padding: '0.5rem 0.6rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>GW{t.gw}</td>
+                      <td style={{ padding: '0.5rem 0.6rem', color: 'var(--text-secondary)' }}>{t.manager}</td>
+                      <td style={{ padding: '0.5rem 0.6rem' }}>
+                        <span className={`badge ${t.kind === 'w' ? 'badge--draw' : 'badge--win'}`}>{t.kind === 'w' ? 'Waiver' : 'Free Agent'}</span>
                       </td>
-                      <td style={{ padding: '0.5rem 0.75rem', color: 'var(--green-bright)', whiteSpace: 'nowrap' }}>
-                        ↑ {t.player_in}<PosBadge pos={t.pos_in} /><TeamTag team={t.team_in} /><FlagBadge flag={t.flag_in} />
+                      <td style={{ padding: '0.5rem 0.6rem', color: 'var(--green-bright)', whiteSpace: 'nowrap' }}>
+                        ↑ {t.web_name_in}<PosBadge pos={t.pos_in} /><TeamTag team={t.team_in} /><FlagBadge flag={t.flag_in} />
                       </td>
-                      <td style={{ padding: '0.5rem 0.75rem', color: 'var(--red-bright)', whiteSpace: 'nowrap' }}>
-                        ↓ {t.player_out}<PosBadge pos={t.pos_out} /><TeamTag team={t.team_out} /><FlagBadge flag={t.flag_out} />
+                      <td style={{ padding: '0.5rem 0.6rem', color: 'var(--red-bright)', whiteSpace: 'nowrap' }}>
+                        ↓ {t.web_name_out}<PosBadge pos={t.pos_out} /><TeamTag team={t.team_out} /><FlagBadge flag={t.flag_out} />
                       </td>
-                      <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{t.points_in_after}</td>
-                      <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{t.points_out_after}</td>
                       <td style={{ padding: '0.5rem 0.75rem', textAlign: 'right', fontWeight: 600, color: deltaColor(t.delta) }}>{t.delta > 0 ? '+' : ''}{t.delta}</td>
                     </tr>
                     {expanded === t.id && (
@@ -1102,7 +1103,7 @@ export function TransfersPage() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       No transfers match the current filters.
                     </td>
                   </tr>
@@ -1139,14 +1140,14 @@ export function TransfersPage() {
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>BEST</div>
                     <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--green-bright)' }}>+{mgr.best_transfer.delta}</div>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)' }}>{mgr.best_transfer.player_in.split(' ').pop()}</div>
+                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)' }}>{mgr.best_transfer.web_name_in}</div>
                   </div>
                 )}
                 {mgr.worst_transfer && (
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '0.1rem' }}>WORST</div>
                     <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--red-bright)' }}>{mgr.worst_transfer.delta}</div>
-                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)' }}>{mgr.worst_transfer.player_in.split(' ').pop()}</div>
+                    <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)' }}>{mgr.worst_transfer.web_name_in}</div>
                   </div>
                 )}
               </div>
