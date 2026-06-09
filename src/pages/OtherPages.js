@@ -4,6 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, Cell, ReferenceLine,
+  ScatterChart, Scatter, ZAxis, LabelList,
 } from 'recharts';
 import { useApi }                    from '../hooks/useApi';
 import { getManager }                from '../config';
@@ -955,10 +956,28 @@ function TransferChart({ transfer }) {
   return (
     <td colSpan={99} style={{ padding: '1.25rem 1.5rem', background: 'var(--bg-base)' }}>
       {/* Summary row */}
-      <div style={{ display: 'flex', gap: '2rem', marginBottom: '0.75rem', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.72rem', flexWrap: 'wrap' }}>
-        <div><span style={{ color: 'var(--text-muted)' }}>Pts after (in): </span><span style={{ color: 'var(--green-bright)', fontWeight: 600 }}>{transfer.points_in_after}</span></div>
-        <div><span style={{ color: 'var(--text-muted)' }}>Pts after (out): </span><span style={{ color: 'var(--red-bright)', fontWeight: 600 }}>{transfer.points_out_after}</span></div>
-        <div><span style={{ color: 'var(--text-muted)' }}>Delta: </span><span style={{ fontWeight: 600, color: deltaColor(transfer.delta) }}>{transfer.delta > 0 ? '+' : ''}{transfer.delta}</span></div>
+      <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.75rem', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.72rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        {/* Ownership-window metrics — primary */}
+        <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-raised)', borderRadius: 4, border: '1px solid var(--border)' }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.62rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+            Ownership window {transfer.window_is_full_season ? '(full season — no history)' : `GW${transfer.ownership_from}–GW${transfer.ownership_to} · ${transfer.gws_held} GW${transfer.gws_held !== 1 ? 's' : ''}`}
+          </div>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <div><span style={{ color: 'var(--text-muted)' }}>Pts in: </span><span style={{ color: 'var(--green-bright)', fontWeight: 600 }}>{transfer.pts_in_window}</span></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Pts out: </span><span style={{ color: 'var(--red-bright)', fontWeight: 600 }}>{transfer.pts_out_window}</span></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Δ window: </span><span style={{ fontWeight: 600, color: deltaColor(transfer.delta_window) }}>{transfer.delta_window > 0 ? '+' : ''}{transfer.delta_window}</span></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Δ per GW: </span><span style={{ fontWeight: 700, color: deltaColor(transfer.delta_per_gw) }}>{transfer.delta_per_gw > 0 ? '+' : ''}{transfer.delta_per_gw}</span></div>
+          </div>
+        </div>
+        {/* Full-season totals — secondary context */}
+        <div style={{ padding: '0.5rem 0.75rem', background: 'transparent', borderRadius: 4, border: '1px solid var(--border)', opacity: 0.7 }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.62rem', textTransform: 'uppercase', marginBottom: '0.2rem' }}>Full season after GW{transfer.gw}</div>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <div><span style={{ color: 'var(--text-muted)' }}>In: </span><span style={{ color: 'var(--text-secondary)' }}>{transfer.points_in_after}</span></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Out: </span><span style={{ color: 'var(--text-secondary)' }}>{transfer.points_out_after}</span></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Δ: </span><span style={{ color: deltaColor(transfer.delta) }}>{transfer.delta > 0 ? '+' : ''}{transfer.delta}</span></div>
+          </div>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <span style={{ color: 'var(--text-muted)' }}>Fixture swap: </span>
           <SmartScoreBadge score={transfer.smart_score} />
@@ -997,7 +1016,7 @@ function TransferChart({ transfer }) {
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="gw" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
               <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
-              <Tooltip contentStyle={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' }} labelStyle={{ color: 'var(--text-muted)' }} />
+              <Tooltip contentStyle={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--text-primary)' }} labelStyle={{ color: 'var(--text-muted)' }} />
               <Legend wrapperStyle={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem' }} />
               <Line type="monotone" dataKey={transfer.web_name_in}  stroke="var(--green-bright)" strokeWidth={2} dot={{ r: 3 }} name={`↑ ${transfer.web_name_in}`} />
               <Line type="monotone" dataKey={transfer.web_name_out} stroke="var(--red-bright)"   strokeWidth={2} dot={{ r: 3 }} name={`↓ ${transfer.web_name_out}`} />
@@ -1055,8 +1074,9 @@ export function TransfersPage() {
     if (!stats) return [];
     return stats.by_position.map(p => ({
       pos:        p.position,
-      Transfers:  p.count || 0,
+      Transfers:  p.count        || 0,
       'Per Slot': p.count_per_slot || 0,
+      HitRate:    p.hit_rate     || 0,
     })).sort((a, b) => b['Per Slot'] - a['Per Slot']);
   }, [stats]);
 
@@ -1187,7 +1207,8 @@ export function TransfersPage() {
   if (error)   return <ErrorMsg message={error} />;
   if (!data)   return null;
 
-  const { all_transfers, best_transfer, worst_transfer, manager_summary } = data;
+  const { all_transfers, best_transfer, worst_transfer,
+          best_transfer_pgw, worst_transfer_pgw, manager_summary } = data;
   const managers = ['ALL', ...new Set(all_transfers.map(t => t.manager))];
 
   const busiest_gw   = stats?.busiest_gw;
@@ -1215,7 +1236,7 @@ export function TransfersPage() {
   const deltaColor = d => d > 0 ? 'var(--green-bright)' : d < 0 ? 'var(--red-bright)' : 'var(--text-muted)';
 
   const TT = {
-    contentStyle: { background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' },
+    contentStyle: { background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', color: 'var(--text-primary)' },
     labelStyle:   { color: 'var(--text-muted)' },
   };
 
@@ -1245,26 +1266,61 @@ export function TransfersPage() {
       </div>
 
       {/* Best / Worst callouts — show on all tabs */}
-      {(best_transfer || worst_transfer) && (
+      {(best_transfer_pgw || worst_transfer_pgw) && (
         <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-          {best_transfer && (
+          {best_transfer_pgw && (
             <div className="card" style={{ borderLeft: '3px solid var(--green-bright)' }}>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>🏆 Best Transfer</div>
-              <div style={{ color: 'var(--green-bright)', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem' }}>+{best_transfer.delta} pts</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>↑ {best_transfer.web_name_in} <PosBadge pos={best_transfer.pos_in} /> <TeamTag team={best_transfer.team_in} /></div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>↓ {best_transfer.web_name_out} <PosBadge pos={best_transfer.pos_out} /> <TeamTag team={best_transfer.team_out} /></div>
-              <div style={{ color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', marginTop: '0.25rem' }}>GW{best_transfer.gw} · {best_transfer.manager}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ color: 'var(--green-bright)', fontFamily: "'Playfair Display', serif", fontSize: '1.3rem' }}>
+                  +{best_transfer_pgw.delta_per_gw} pts/GW
+                </div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  over {best_transfer_pgw.gws_held} GW{best_transfer_pgw.gws_held !== 1 ? 's' : ''} held
+                  {best_transfer_pgw.window_is_full_season && ' *'}
+                </div>
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.35rem' }}>
+                ↑ {best_transfer_pgw.web_name_in} <PosBadge pos={best_transfer_pgw.pos_in} /> <TeamTag team={best_transfer_pgw.team_in} />
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                ↓ {best_transfer_pgw.web_name_out} <PosBadge pos={best_transfer_pgw.pos_out} /> <TeamTag team={best_transfer_pgw.team_out} />
+              </div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'flex', gap: '1rem' }}>
+                <span>GW{best_transfer_pgw.gw} · {best_transfer_pgw.manager}</span>
+                <span style={{ color: 'var(--green-bright)', opacity: 0.7 }}>+{best_transfer_pgw.delta_window} raw over window</span>
+              </div>
             </div>
           )}
-          {worst_transfer && (
+          {worst_transfer_pgw && (
             <div className="card" style={{ borderLeft: '3px solid var(--red-bright)' }}>
               <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>💸 Worst Transfer</div>
-              <div style={{ color: 'var(--red-bright)', fontFamily: "'Playfair Display', serif", fontSize: '1.1rem' }}>{worst_transfer.delta} pts</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' }}>↑ {worst_transfer.web_name_in} <PosBadge pos={worst_transfer.pos_in} /> <TeamTag team={worst_transfer.team_in} /></div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>↓ {worst_transfer.web_name_out} <PosBadge pos={worst_transfer.pos_out} /> <TeamTag team={worst_transfer.team_out} /></div>
-              <div style={{ color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem', marginTop: '0.25rem' }}>GW{worst_transfer.gw} · {worst_transfer.manager}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <div style={{ color: 'var(--red-bright)', fontFamily: "'Playfair Display', serif", fontSize: '1.3rem' }}>
+                  {worst_transfer_pgw.delta_per_gw} pts/GW
+                </div>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  over {worst_transfer_pgw.gws_held} GW{worst_transfer_pgw.gws_held !== 1 ? 's' : ''} held
+                  {worst_transfer_pgw.window_is_full_season && ' *'}
+                </div>
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.35rem' }}>
+                ↑ {worst_transfer_pgw.web_name_in} <PosBadge pos={worst_transfer_pgw.pos_in} /> <TeamTag team={worst_transfer_pgw.team_in} />
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                ↓ {worst_transfer_pgw.web_name_out} <PosBadge pos={worst_transfer_pgw.pos_out} /> <TeamTag team={worst_transfer_pgw.team_out} />
+              </div>
+              <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'flex', gap: '1rem' }}>
+                <span>GW{worst_transfer_pgw.gw} · {worst_transfer_pgw.manager}</span>
+                <span style={{ color: 'var(--red-bright)', opacity: 0.7 }}>{worst_transfer_pgw.delta_window} raw over window</span>
+              </div>
             </div>
           )}
+        </div>
+      )}
+      {best_transfer_pgw?.window_is_full_season && (
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+          * No ownership history found — pts/GW calculated over full remaining season
         </div>
       )}
 
@@ -1493,26 +1549,58 @@ export function TransfersPage() {
                 </div>
               </div>
 
-              {/* ── Position churn + activity over time ── */}
+              {/* ── Position churn scatter + activity over time ── */}
               <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
                 <div className="card">
-                  <SectionHeader title="Transfer Churn by Position" sub="Raw count vs per-squad-slot (GKP×2, DEF×5, MID×5, FWD×3) — normalised shows true rotation rate" />
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={churnData} margin={{ top: 4, right: 16, left: -10, bottom: 0 }}>
+                  <SectionHeader
+                    title="Transfer Churn by Position"
+                    sub="X = total transfers · Y = per squad slot (normalised) · dot size = hit rate"
+                  />
+                  <ResponsiveContainer width="100%" height={220}>
+                    <ScatterChart margin={{ top: 16, right: 24, left: -10, bottom: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="pos" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fill: 'var(--text-muted)' }} />
-                      <YAxis yAxisId="left"  tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={true} tickFormatter={v => v.toFixed(1)} />
-                      <Tooltip {...TT} />
-                      <Legend wrapperStyle={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem' }} />
-                      <Bar yAxisId="left"  dataKey="Transfers" radius={[3, 3, 0, 0]} fill="var(--gold-dim)" name="Raw transfers" />
-                      <Bar yAxisId="right" dataKey="Per Slot"  radius={[3, 3, 0, 0]} name="Per squad slot">
+                      <XAxis
+                        dataKey="Transfers"
+                        type="number"
+                        name="Total transfers"
+                        tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }}
+                        label={{ value: 'Total transfers', position: 'insideBottom', offset: -4, fontSize: 9, fill: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}
+                        allowDecimals={false}
+                      />
+                      <YAxis
+                        dataKey="Per Slot"
+                        type="number"
+                        name="Per squad slot"
+                        tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }}
+                        tickFormatter={v => v.toFixed(1)}
+                        label={{ value: 'Per slot', angle: -90, position: 'insideLeft', offset: 12, fontSize: 9, fill: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}
+                      />
+                      <ZAxis dataKey="HitRate" range={[60, 260]} name="Hit rate %" />
+                      <Tooltip
+                        cursor={{ strokeDasharray: '3 3' }}
+                        contentStyle={{ background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.72rem', color: 'var(--text-primary)' }}
+                        formatter={(val, name) => [
+                          name === 'Per squad slot' ? val.toFixed(2)
+                          : name === 'Hit rate %'   ? `${val}%`
+                          : val,
+                          name
+                        ]}
+                      />
+                      <Scatter data={churnData} isAnimationActive={false}>
                         {churnData.map((entry, i) => (
-                          <Cell key={i} fill={POS_COLOR[entry.pos] || 'var(--gold-mid)'} />
+                          <Cell key={i} fill={POS_COLOR[entry.pos] || 'var(--gold-mid)'} fillOpacity={0.85} />
                         ))}
-                      </Bar>
-                    </BarChart>
+                        <LabelList
+                          dataKey="pos"
+                          position="top"
+                          style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', fill: 'var(--text-secondary)', fontWeight: 600 }}
+                        />
+                      </Scatter>
+                    </ScatterChart>
                   </ResponsiveContainer>
+                  <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                    Dot size = hit rate (larger = more positive transfers in that position)
+                  </div>
                 </div>
 
                 <div className="card">
@@ -1572,12 +1660,12 @@ export function TransfersPage() {
                 </div>
               </div>
 
-              {/* ── Team activity over time ── */}
+              {/* ── Club activity over time ── */}
               <div className="card" style={{ marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
                   <SectionHeader
                     title="Club Activity by Gameweek"
-                    sub="Bars = transfers IN (green) / OUT (red) · colour intensity = fixture difficulty at that GW"
+                    sub="Transfers IN and OUT per GW · FDR squares show fixture difficulty that week"
                   />
                   <select
                     value={teamFilter}
@@ -1599,24 +1687,60 @@ export function TransfersPage() {
                   </div>
                 ) : (
                   <>
-                    {/* FDR colour legend */}
-                    <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.75rem', alignItems: 'center' }}>
-                      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Fixture difficulty (OUT bars):</span>
-                      {[2, 3, 4, 5].map(d => {
-                        const c = fdrColor(d);
-                        return (
-                          <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <div style={{ width: 12, height: 10, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 2 }} />
-                            <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: c.text }}>
-                              {d <= 2 ? 'Easy' : d === 3 ? 'Med' : d === 4 ? 'Hard' : 'Very Hard'}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={teamActivityWithFdr} margin={{ top: 4, right: 16, left: -10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <XAxis dataKey="gw" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} />
+                        <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
+                        <Tooltip {...TT} />
+                        <Legend wrapperStyle={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.7rem' }} />
+                        <Bar dataKey="in"  name="IN"  fill="var(--green-bright)" fillOpacity={0.8} radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="out" name="OUT" fill="var(--red-bright)"   fillOpacity={0.8} radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
 
-                    {/* Custom bar chart rendered in SVG so we can colour OUT bars by FDR */}
-                    <TeamActivityChart data={teamActivityWithFdr} />
+                    {/* FDR squares row — one set per GW, position-split */}
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.62rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
+                        Fixture difficulty per GW · <span style={{ color: '#7eb8d4' }}>■</span> GKP/DEF (opp. attack) &nbsp; <span style={{ color: '#d4a843' }}>■</span> MID/FWD (opp. defence)
+                      </div>
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        {teamActivityWithFdr.map((d, i) => {
+                          const defC = fdrColor(d.defFdr);
+                          const atkC = fdrColor(d.atkFdr);
+                          return (
+                            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                              <div
+                                title={`${d.gw} GKP/DEF FDR: ${d.defFdr ?? '?'} (opp. attack)`}
+                                style={{ width: 28, height: 14, background: defC.bg, border: `1px solid ${defC.border}`, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.5rem', color: defC.text }}>{d.defFdr ?? '?'}</span>
+                              </div>
+                              <div
+                                title={`${d.gw} MID/FWD FDR: ${d.atkFdr ?? '?'} (opp. defence)`}
+                                style={{ width: 28, height: 14, background: atkC.bg, border: `1px solid ${atkC.border}`, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              >
+                                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.5rem', color: atkC.text }}>{d.atkFdr ?? '?'}</span>
+                              </div>
+                              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.5rem', color: 'var(--text-muted)' }}>{d.gw.replace('GW', '')}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                        {[2, 3, 4, 5].map(d => {
+                          const c = fdrColor(d);
+                          return (
+                            <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <div style={{ width: 12, height: 10, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 2 }} />
+                              <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.6rem', color: c.text }}>
+                                {d <= 2 ? 'Easy' : d === 3 ? 'Medium' : d === 4 ? 'Hard' : 'Very Hard'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -1681,123 +1805,6 @@ export function TransfersPage() {
   );
 }
 
-/* ── Custom team activity chart: position-aware dual FDR ── */
-function TeamActivityChart({ data }) {
-  if (!data.length) return null;
-
-  const maxVal = Math.max(...data.flatMap(d => [d.in, d.out]), 1);
-  const BAR_W  = Math.max(18, Math.min(44, Math.floor(520 / data.length) - 6));
-  const H      = 140;   // height of upward (IN) section
-  const H_OUT  = 80;    // height of downward (OUT) section
-  const TOTAL  = H + H_OUT + 40; // +40 for GW labels + FDR dots
-
-  // FDR colour helper — returns border/fill colour
-  function fdrFill(fdr) {
-    if (fdr === null || fdr === undefined) return '#555';
-    if (fdr <= 2) return '#2d6b2d';
-    if (fdr === 3) return '#6b5500';
-    if (fdr === 4) return '#6b2020';
-    return '#8b1515';
-  }
-  function fdrLabel(fdr) {
-    if (fdr === null || fdr === undefined) return '?';
-    if (fdr <= 2) return 'Easy';
-    if (fdr === 3) return 'Med';
-    if (fdr === 4) return 'Hard';
-    return 'VHard';
-  }
-
-  const svgW = Math.max(data.length * (BAR_W + 8) + 60, 420);
-
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      {/* Legend */}
-      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '0.75rem', alignItems: 'center', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <div style={{ width: 12, height: 12, background: '#3a7a3a', borderRadius: 2 }} />
-          <span>Transfers IN</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-          <div style={{ width: 12, height: 12, background: '#7a2a2a', borderRadius: 2 }} />
-          <span>Transfers OUT</span>
-        </div>
-        <span style={{ color: 'var(--text-muted)', opacity: 0.6 }}>·</span>
-        <span>FDR dots below each bar: <span style={{ color: '#7eb8d4' }}>●</span> GKP/DEF (opp. attack) &nbsp; <span style={{ color: '#d4a843' }}>●</span> MID/FWD (opp. defence)</span>
-        {[2,3,4,5].map(d => {
-          const c = fdrFill(d);
-          return <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />
-            <span>{fdrLabel(d)}</span>
-          </div>;
-        })}
-      </div>
-
-      <svg width="100%" viewBox={`0 0 ${svgW} ${TOTAL}`} style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
-        {/* Baseline */}
-        <line x1={44} y1={H} x2={svgW - 4} y2={H} stroke="var(--border)" strokeWidth={1} />
-
-        {/* Y-axis labels */}
-        <text x={40} y={H - H * 0.85} textAnchor="end" fontSize={8} fill="#3a7a3a">IN</text>
-        <text x={40} y={H + H_OUT * 0.7} textAnchor="end" fontSize={8} fill="#7a2a2a">OUT</text>
-
-        {data.map((d, i) => {
-          const x    = 48 + i * (BAR_W + 8);
-          const inH  = d.in  > 0 ? Math.max(Math.round((d.in  / maxVal) * H   * 0.9), 4) : 0;
-          const outH = d.out > 0 ? Math.max(Math.round((d.out / maxVal) * H_OUT * 0.9), 4) : 0;
-          const cx   = x + BAR_W / 2;
-
-          return (
-            <g key={d.gw}>
-              {/* IN bar — green, grows up */}
-              {d.in > 0 && (
-                <rect x={x} y={H - inH} width={BAR_W} height={inH}
-                  fill="#3a7a3a" fillOpacity={0.85} rx={2}>
-                  <title>{d.gw}: {d.in} IN</title>
-                </rect>
-              )}
-              {/* OUT bar — red, grows down */}
-              {d.out > 0 && (
-                <rect x={x} y={H} width={BAR_W} height={outH}
-                  fill="#7a2a2a" fillOpacity={0.85} rx={2}>
-                  <title>{d.gw}: {d.out} OUT</title>
-                </rect>
-              )}
-
-              {/* GW label */}
-              <text x={cx} y={H + outH + 13} textAnchor="middle" fontSize={8} fill="var(--text-muted)">
-                {d.gw}
-              </text>
-
-              {/* FDR dots — shown below GW label
-                  Blue dot = GKP/DEF FDR (defFdr)
-                  Gold dot = MID/FWD FDR (atkFdr)
-              */}
-              <circle
-                cx={cx - 4} cy={H + outH + 24}
-                r={4}
-                fill={fdrFill(d.defFdr)}
-                opacity={d.defFdr !== null ? 0.9 : 0.2}
-              >
-                <title>GKP/DEF FDR {d.gw}: {fdrLabel(d.defFdr)} (opp. attack)</title>
-              </circle>
-              <circle
-                cx={cx + 4} cy={H + outH + 24}
-                r={4}
-                fill={fdrFill(d.atkFdr)}
-                opacity={d.atkFdr !== null ? 0.9 : 0.2}
-              >
-                <title>MID/FWD FDR {d.gw}: {fdrLabel(d.atkFdr)} (opp. defence)</title>
-              </circle>
-            </g>
-          );
-        })}
-      </svg>
-      <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginTop: '0.25rem' }}>
-        FDR dots: green = easy fixtures, amber = medium, red = hard/very hard · Hover bars and dots for detail
-      </div>
-    </div>
-  );
-}
 /* ══════════════════════════════════════════
    RECORDS PAGE
 ══════════════════════════════════════════ */
