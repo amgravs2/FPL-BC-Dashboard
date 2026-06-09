@@ -1798,7 +1798,7 @@ function TeamActivityChart({ data }) {
     </div>
   );
 }
-
+/* ══════════════════════════════════════════
    RECORDS PAGE
 ══════════════════════════════════════════ */
 export function RecordsPage() {
