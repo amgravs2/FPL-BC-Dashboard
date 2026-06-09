@@ -1048,18 +1048,14 @@ export function TransfersPage() {
 
   const { data, loading, error }    = useApi(`/query/season/${seasonId}/transfers`,      [seasonId]);
   const { data: stats, loading: sl} = useApi(`/query/season/${seasonId}/transfer-stats`, [seasonId]);
-  const { data: fixtureData }       = useApi(`/query/season/${seasonId}/fixtures-upcoming`, [seasonId]);
 
   // ── ALL useMemo hooks MUST be declared before any early returns ────────────
 
   const churnData = useMemo(() => {
     if (!stats) return [];
-    // Squad slot counts for normalisation: GKP=2, DEF=5, MID=5, FWD=3
-    const SLOTS = { GKP: 2, DEF: 5, MID: 5, FWD: 3 };
     return stats.by_position.map(p => ({
-      pos:      p.position,
-      Transfers: p.count || 0,
-      // Transfers per squad slot — removes the bias that DEF/MID have more spots
+      pos:        p.position,
+      Transfers:  p.count || 0,
       'Per Slot': p.count_per_slot || 0,
     })).sort((a, b) => b['Per Slot'] - a['Per Slot']);
   }, [stats]);
@@ -1102,30 +1098,68 @@ export function TransfersPage() {
     return Object.values(gwMap).sort((a, b) => a.gw - b.gw);
   }, [stats, teamFilter]);
 
+  // ── FDR from full fixture list in stats (covers all historical GWs) ─────────
+  // Position-aware: GKP/DEF → opp ATTACK strength; MID/FWD → opp DEFENCE strength
+  const fdrHelpers = useMemo(() => {
+    if (!stats?.all_fixtures || !stats?.team_strengths) return null;
+    const strengthById    = {};
+    const strengthByShort = {};
+    stats.team_strengths.forEach(t => {
+      strengthById[t.id]          = t;
+      strengthByShort[t.short_name] = t;
+    });
+    const avg = key => {
+      const arr = stats.team_strengths.map(t => t[key]).filter(Boolean);
+      return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 1200;
+    };
+    const avgAtkA = avg('atk_a'), avgAtkH = avg('atk_h');
+    const avgDefA = avg('def_a'), avgDefH = avg('def_h');
+    function scale(raw, avgVal) {
+      if (!raw || !avgVal) return 3;
+      const r = raw / avgVal;
+      if (r < 0.87) return 2;
+      if (r < 1.07) return 3;
+      if (r < 1.17) return 4;
+      return 5;
+    }
+    // fdrByTeamGw: teamId_gw → {atkFdr, defFdr}
+    //   atkFdr = difficulty for team's MID/FWD to score (opponent defence)
+    //   defFdr = difficulty for team's GKP/DEF to keep CS (opponent attack)
+    const fdrByTeamGw = {};
+    stats.all_fixtures.forEach(f => {
+      const oppH = strengthById[f.team_a] || {};
+      const oppA = strengthById[f.team_h] || {};
+      fdrByTeamGw[`${f.team_h}_${f.gw}`] = {
+        atkFdr: scale(oppH.def_a, avgDefA),
+        defFdr: scale(oppH.atk_a, avgAtkA),
+      };
+      fdrByTeamGw[`${f.team_a}_${f.gw}`] = {
+        atkFdr: scale(oppA.def_h, avgDefH),
+        defFdr: scale(oppA.atk_h, avgAtkH),
+      };
+    });
+    return { fdrByTeamGw, strengthByShort, strengthById };
+  }, [stats]);
+
   const teamFdrByGw = useMemo(() => {
-    if (!fixtureData || teamFilter === 'ALL') return {};
-    const fixtures = fixtureData.fixtures || [];
-    const teams    = fixtureData.teams    || [];
-    const teamObj  = teams.find(t => t.short_name === teamFilter);
+    if (!fdrHelpers || teamFilter === 'ALL') return {};
+    const teamObj = fdrHelpers.strengthByShort[teamFilter];
     if (!teamObj) return {};
     const tid = teamObj.id;
     const result = {};
-    fixtures.forEach(f => {
-      if (f.team_h === tid) {
-        result[f.gw] = { def: f.team_h_defence_fdr, atk: f.team_h_attack_fdr };
-      } else if (f.team_a === tid) {
-        result[f.gw] = { def: f.team_a_defence_fdr, atk: f.team_a_attack_fdr };
-      }
+    Object.entries(fdrHelpers.fdrByTeamGw).forEach(([key, val]) => {
+      const parts = key.split('_');
+      if (parseInt(parts[0]) === tid) result[parseInt(parts[1])] = val;
     });
     return result;
-  }, [fixtureData, teamFilter]);
+  }, [fdrHelpers, teamFilter]);
 
   const teamActivityWithFdr = useMemo(() => {
     return teamActivityData.map(d => ({
       ...d,
       gw:     `GW${d.gw}`,
-      fdr:    teamFdrByGw[d.gw]?.def ?? 3,
-      fdrAtk: teamFdrByGw[d.gw]?.atk ?? 3,
+      atkFdr: teamFdrByGw[d.gw]?.atkFdr ?? null,
+      defFdr: teamFdrByGw[d.gw]?.defFdr ?? null,
     }));
   }, [teamActivityData, teamFdrByGw]);
 
@@ -1468,7 +1502,7 @@ export function TransfersPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="pos" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fill: 'var(--text-muted)' }} />
                       <YAxis yAxisId="left"  tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={true} tickFormatter={v => v.toFixed(1)} />
                       <Tooltip {...TT} />
                       <Legend wrapperStyle={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem' }} />
                       <Bar yAxisId="left"  dataKey="Transfers" radius={[3, 3, 0, 0]} fill="var(--gold-dim)" name="Raw transfers" />
@@ -1647,63 +1681,119 @@ export function TransfersPage() {
   );
 }
 
-/* ── Custom team activity chart: bars coloured by FDR ── */
+/* ── Custom team activity chart: position-aware dual FDR ── */
 function TeamActivityChart({ data }) {
   if (!data.length) return null;
+
   const maxVal = Math.max(...data.flatMap(d => [d.in, d.out]), 1);
-  const BAR_W  = Math.max(16, Math.min(40, Math.floor(560 / data.length) - 6));
-  const H      = 160;
+  const BAR_W  = Math.max(18, Math.min(44, Math.floor(520 / data.length) - 6));
+  const H      = 140;   // height of upward (IN) section
+  const H_OUT  = 80;    // height of downward (OUT) section
+  const TOTAL  = H + H_OUT + 40; // +40 for GW labels + FDR dots
+
+  // FDR colour helper — returns border/fill colour
+  function fdrFill(fdr) {
+    if (fdr === null || fdr === undefined) return '#555';
+    if (fdr <= 2) return '#2d6b2d';
+    if (fdr === 3) return '#6b5500';
+    if (fdr === 4) return '#6b2020';
+    return '#8b1515';
+  }
+  function fdrLabel(fdr) {
+    if (fdr === null || fdr === undefined) return '?';
+    if (fdr <= 2) return 'Easy';
+    if (fdr === 3) return 'Med';
+    if (fdr === 4) return 'Hard';
+    return 'VHard';
+  }
+
+  const svgW = Math.max(data.length * (BAR_W + 8) + 60, 420);
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <svg
-        width="100%"
-        viewBox={`0 0 ${Math.max(data.length * (BAR_W + 8) + 40, 400)} ${H + 36}`}
-        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-      >
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', marginBottom: '0.75rem', alignItems: 'center', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <div style={{ width: 12, height: 12, background: '#3a7a3a', borderRadius: 2 }} />
+          <span>Transfers IN</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <div style={{ width: 12, height: 12, background: '#7a2a2a', borderRadius: 2 }} />
+          <span>Transfers OUT</span>
+        </div>
+        <span style={{ color: 'var(--text-muted)', opacity: 0.6 }}>·</span>
+        <span>FDR dots below each bar: <span style={{ color: '#7eb8d4' }}>●</span> GKP/DEF (opp. attack) &nbsp; <span style={{ color: '#d4a843' }}>●</span> MID/FWD (opp. defence)</span>
+        {[2,3,4,5].map(d => {
+          const c = fdrFill(d);
+          return <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: c }} />
+            <span>{fdrLabel(d)}</span>
+          </div>;
+        })}
+      </div>
+
+      <svg width="100%" viewBox={`0 0 ${svgW} ${TOTAL}`} style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+        {/* Baseline */}
+        <line x1={44} y1={H} x2={svgW - 4} y2={H} stroke="var(--border)" strokeWidth={1} />
+
+        {/* Y-axis labels */}
+        <text x={40} y={H - H * 0.85} textAnchor="end" fontSize={8} fill="#3a7a3a">IN</text>
+        <text x={40} y={H + H_OUT * 0.7} textAnchor="end" fontSize={8} fill="#7a2a2a">OUT</text>
+
         {data.map((d, i) => {
-          const x       = 32 + i * (BAR_W + 8);
-          const inH     = Math.round((d.in  / maxVal) * H * 0.9);
-          const outH    = Math.round((d.out / maxVal) * H * 0.9);
-          const fdrCol  = fdrColor(d.fdr);
-          const inCol   = '#3a7a3a';
-          const outCol  = fdrCol.bg === 'var(--bg-raised)' ? '#7a2a2a' : fdrCol.border;
+          const x    = 48 + i * (BAR_W + 8);
+          const inH  = d.in  > 0 ? Math.max(Math.round((d.in  / maxVal) * H   * 0.9), 4) : 0;
+          const outH = d.out > 0 ? Math.max(Math.round((d.out / maxVal) * H_OUT * 0.9), 4) : 0;
+          const cx   = x + BAR_W / 2;
 
           return (
             <g key={d.gw}>
-              {/* IN bar (green, grows up from center) */}
+              {/* IN bar — green, grows up */}
               {d.in > 0 && (
-                <rect
-                  x={x} y={H - inH} width={BAR_W} height={inH}
-                  fill={inCol} fillOpacity={0.85} rx={2}
-                >
-                  <title>{d.gw}: {d.in} transferred IN</title>
+                <rect x={x} y={H - inH} width={BAR_W} height={inH}
+                  fill="#3a7a3a" fillOpacity={0.85} rx={2}>
+                  <title>{d.gw}: {d.in} IN</title>
                 </rect>
               )}
-              {/* OUT bar (FDR-coloured, grows down from center baseline) */}
+              {/* OUT bar — red, grows down */}
               {d.out > 0 && (
-                <rect
-                  x={x} y={H} width={BAR_W} height={outH}
-                  fill={fdrCol.border} fillOpacity={0.85} rx={2}
-                >
-                  <title>{d.gw}: {d.out} transferred OUT · Fixture FDR {d.fdr}</title>
+                <rect x={x} y={H} width={BAR_W} height={outH}
+                  fill="#7a2a2a" fillOpacity={0.85} rx={2}>
+                  <title>{d.gw}: {d.out} OUT</title>
                 </rect>
               )}
+
               {/* GW label */}
-              <text x={x + BAR_W / 2} y={H + outH + 14} textAnchor="middle" fontSize={8} fill="var(--text-muted)">
+              <text x={cx} y={H + outH + 13} textAnchor="middle" fontSize={8} fill="var(--text-muted)">
                 {d.gw}
               </text>
+
+              {/* FDR dots — shown below GW label
+                  Blue dot = GKP/DEF FDR (defFdr)
+                  Gold dot = MID/FWD FDR (atkFdr)
+              */}
+              <circle
+                cx={cx - 4} cy={H + outH + 24}
+                r={4}
+                fill={fdrFill(d.defFdr)}
+                opacity={d.defFdr !== null ? 0.9 : 0.2}
+              >
+                <title>GKP/DEF FDR {d.gw}: {fdrLabel(d.defFdr)} (opp. attack)</title>
+              </circle>
+              <circle
+                cx={cx + 4} cy={H + outH + 24}
+                r={4}
+                fill={fdrFill(d.atkFdr)}
+                opacity={d.atkFdr !== null ? 0.9 : 0.2}
+              >
+                <title>MID/FWD FDR {d.gw}: {fdrLabel(d.atkFdr)} (opp. defence)</title>
+              </circle>
             </g>
           );
         })}
-        {/* Baseline */}
-        <line x1={28} y1={H} x2="100%" y2={H} stroke="var(--border)" strokeWidth={1} />
-        {/* IN / OUT labels */}
-        <text x={14} y={H - H * 0.5} textAnchor="middle" fontSize={8} fill="#3a7a3a" transform={`rotate(-90, 14, ${H - H * 0.5})`}>IN</text>
-        <text x={14} y={H + H * 0.3} textAnchor="middle" fontSize={8} fill="var(--text-muted)" transform={`rotate(-90, 14, ${H + H * 0.3})`}>OUT</text>
       </svg>
-      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginTop: '0.25rem' }}>
-        OUT bar colour = fixture difficulty that GW (green = easy, red = hard) — when OUT bars are red, managers sold despite tough fixtures
+      <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginTop: '0.25rem' }}>
+        FDR dots: green = easy fixtures, amber = medium, red = hard/very hard · Hover bars and dots for detail
       </div>
     </div>
   );
