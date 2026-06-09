@@ -1709,7 +1709,8 @@ function TeamActivityChart({ data }) {
   );
 }
 
-   RECORDS PAGE
+
+     /*RECORDS PAGE
 ══════════════════════════════════════════ */
 export function RecordsPage() {
   const [searchParams] = useSearchParams();
