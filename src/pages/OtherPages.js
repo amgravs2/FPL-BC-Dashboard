@@ -1054,10 +1054,14 @@ export function TransfersPage() {
 
   const churnData = useMemo(() => {
     if (!stats) return [];
+    // Squad slot counts for normalisation: GKP=2, DEF=5, MID=5, FWD=3
+    const SLOTS = { GKP: 2, DEF: 5, MID: 5, FWD: 3 };
     return stats.by_position.map(p => ({
-      pos:   p.position,
-      Moves: (p.in || 0) + (p.out || 0),
-    })).sort((a, b) => b.Moves - a.Moves);
+      pos:      p.position,
+      Transfers: p.count || 0,
+      // Transfers per squad slot — removes the bias that DEF/MID have more spots
+      'Per Slot': p.count_per_slot || 0,
+    })).sort((a, b) => b['Per Slot'] - a['Per Slot']);
   }, [stats]);
 
   const posOverTimeData = useMemo(() => {
@@ -1458,14 +1462,17 @@ export function TransfersPage() {
               {/* ── Position churn + activity over time ── */}
               <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
                 <div className="card">
-                  <SectionHeader title="Transfer Churn by Position" sub="Total moves (IN + OUT combined) — which spots managers restlessly rotate" />
+                  <SectionHeader title="Transfer Churn by Position" sub="Raw count vs per-squad-slot (GKP×2, DEF×5, MID×5, FWD×3) — normalised shows true rotation rate" />
                   <ResponsiveContainer width="100%" height={200}>
                     <BarChart data={churnData} margin={{ top: 4, right: 16, left: -10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="pos" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, fill: 'var(--text-muted)' }} />
-                      <YAxis tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
+                      <YAxis yAxisId="left"  tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fill: 'var(--text-muted)' }} allowDecimals={false} />
                       <Tooltip {...TT} />
-                      <Bar dataKey="Moves" radius={[3, 3, 0, 0]}>
+                      <Legend wrapperStyle={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.65rem' }} />
+                      <Bar yAxisId="left"  dataKey="Transfers" radius={[3, 3, 0, 0]} fill="var(--gold-dim)" name="Raw transfers" />
+                      <Bar yAxisId="right" dataKey="Per Slot"  radius={[3, 3, 0, 0]} name="Per squad slot">
                         {churnData.map((entry, i) => (
                           <Cell key={i} fill={POS_COLOR[entry.pos] || 'var(--gold-mid)'} />
                         ))}
@@ -1701,7 +1708,7 @@ function TeamActivityChart({ data }) {
     </div>
   );
 }
-/*══════════════════════════════════════════ 
+
    RECORDS PAGE
 ══════════════════════════════════════════ */
 export function RecordsPage() {
