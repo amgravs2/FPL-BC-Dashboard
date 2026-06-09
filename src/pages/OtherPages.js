@@ -1048,15 +1048,112 @@ export function TransfersPage() {
 
   const { data, loading, error }    = useApi(`/query/season/${seasonId}/transfers`,      [seasonId]);
   const { data: stats, loading: sl} = useApi(`/query/season/${seasonId}/transfer-stats`, [seasonId]);
-  // Fetch all fixtures for FDR colouring in the team-activity chart
   const { data: fixtureData }       = useApi(`/query/season/${seasonId}/fixtures-upcoming`, [seasonId]);
 
+  // ── ALL useMemo hooks MUST be declared before any early returns ────────────
+
+  const churnData = useMemo(() => {
+    if (!stats) return [];
+    return stats.by_position.map(p => ({
+      pos:   p.position,
+      Moves: (p.in || 0) + (p.out || 0),
+    })).sort((a, b) => b.Moves - a.Moves);
+  }, [stats]);
+
+  const posOverTimeData = useMemo(() => {
+    if (!stats?.by_gw_position) return [];
+    const gwMap = {};
+    stats.by_gw_position.forEach(r => {
+      if (!gwMap[r.gw]) gwMap[r.gw] = { gw: `GW${r.gw}`, GKP: 0, DEF: 0, MID: 0, FWD: 0 };
+      gwMap[r.gw][r.position] = (gwMap[r.gw][r.position] || 0) + r.count;
+    });
+    return Object.values(gwMap).sort((a, b) => parseInt(a.gw.slice(2)) - parseInt(b.gw.slice(2)));
+  }, [stats]);
+
+  const teamDivergingData = useMemo(() => {
+    if (!stats) return [];
+    return stats.by_team.slice(0, 12).map(t => ({
+      team:       t.pl_team,
+      'Atk IN':   t.in.attack   || 0,
+      'Def IN':   t.in.defense  || 0,
+      'Atk OUT': -(t.out.attack  || 0),
+      'Def OUT': -(t.out.defense || 0),
+    }));
+  }, [stats]);
+
+  const allTeams = useMemo(() => {
+    if (!stats) return [];
+    return stats.by_team.map(t => t.pl_team).sort();
+  }, [stats]);
+
+  const teamActivityData = useMemo(() => {
+    if (!stats?.by_gw_team || teamFilter === 'ALL') return [];
+    const rows = stats.by_gw_team.filter(r => r.pl_team === teamFilter);
+    const gwMap = {};
+    rows.forEach(r => {
+      if (!gwMap[r.gw]) gwMap[r.gw] = { gw: r.gw, in: 0, out: 0 };
+      if (r.direction === 'in')  gwMap[r.gw].in  += r.count;
+      if (r.direction === 'out') gwMap[r.gw].out += r.count;
+    });
+    return Object.values(gwMap).sort((a, b) => a.gw - b.gw);
+  }, [stats, teamFilter]);
+
+  const teamFdrByGw = useMemo(() => {
+    if (!fixtureData || teamFilter === 'ALL') return {};
+    const fixtures = fixtureData.fixtures || [];
+    const teams    = fixtureData.teams    || [];
+    const teamObj  = teams.find(t => t.short_name === teamFilter);
+    if (!teamObj) return {};
+    const tid = teamObj.id;
+    const result = {};
+    fixtures.forEach(f => {
+      if (f.team_h === tid) {
+        result[f.gw] = { def: f.team_h_defence_fdr, atk: f.team_h_attack_fdr };
+      } else if (f.team_a === tid) {
+        result[f.gw] = { def: f.team_a_defence_fdr, atk: f.team_a_attack_fdr };
+      }
+    });
+    return result;
+  }, [fixtureData, teamFilter]);
+
+  const teamActivityWithFdr = useMemo(() => {
+    return teamActivityData.map(d => ({
+      ...d,
+      gw:     `GW${d.gw}`,
+      fdr:    teamFdrByGw[d.gw]?.def ?? 3,
+      fdrAtk: teamFdrByGw[d.gw]?.atk ?? 3,
+    }));
+  }, [teamActivityData, teamFdrByGw]);
+
+  const hitRateData = useMemo(() => {
+    if (!stats) return [];
+    return stats.by_position.map(p => ({
+      pos:     p.position,
+      'Hit %': p.hit_rate  || 0,
+      'Avg Δ': p.avg_delta || 0,
+    }));
+  }, [stats]);
+
+  const mgrScorecardData = useMemo(() => {
+    if (!stats) return [];
+    return [...stats.by_manager].sort((a, b) => b.net_delta - a.net_delta);
+  }, [stats]);
+
+  const gwChartData = useMemo(() => {
+    if (!stats) return [];
+    return stats.by_gw.map(g => ({ gw: `GW${g.gw}`, Transfers: g.count }));
+  }, [stats]);
+
+  // ── Early returns AFTER all hooks ─────────────────────────────────────────
   if (loading) return <Loading />;
   if (error)   return <ErrorMsg message={error} />;
   if (!data)   return null;
 
   const { all_transfers, best_transfer, worst_transfer, manager_summary } = data;
   const managers = ['ALL', ...new Set(all_transfers.map(t => t.manager))];
+
+  const busiest_gw   = stats?.busiest_gw;
+  const regret_board = stats?.regret_board || [];
 
   /* ── Sorting / filtering for the table ── */
   const filtered = all_transfers
@@ -1079,114 +1176,10 @@ export function TransfersPage() {
 
   const deltaColor = d => d > 0 ? 'var(--green-bright)' : d < 0 ? 'var(--red-bright)' : 'var(--text-muted)';
 
-  /* ── Stats-tab derived data ── */
   const TT = {
     contentStyle: { background: 'var(--bg-raised)', border: '1px solid var(--border)', fontFamily: "'IBM Plex Mono', monospace", fontSize: '0.75rem' },
     labelStyle:   { color: 'var(--text-muted)' },
   };
-
-  // Position churn (total moves touching each position, IN+OUT combined)
-  const churnData = useMemo(() => {
-    if (!stats) return [];
-    return stats.by_position.map(p => ({
-      pos:   p.position,
-      Moves: (p.in || 0) + (p.out || 0),
-    })).sort((a, b) => b.Moves - a.Moves);
-  }, [stats]);
-
-  // Position activity over time: {gw, GKP, DEF, MID, FWD}
-  const posOverTimeData = useMemo(() => {
-    if (!stats?.by_gw_position) return [];
-    const gwMap = {};
-    stats.by_gw_position.forEach(r => {
-      if (!gwMap[r.gw]) gwMap[r.gw] = { gw: `GW${r.gw}`, GKP: 0, DEF: 0, MID: 0, FWD: 0 };
-      gwMap[r.gw][r.position] = (gwMap[r.gw][r.position] || 0) + r.count;
-    });
-    return Object.values(gwMap).sort((a, b) => parseInt(a.gw.slice(2)) - parseInt(b.gw.slice(2)));
-  }, [stats]);
-
-  // Team diverging chart: one entry per team with +attack_in, +defense_in, -attack_out, -defense_out
-  const teamDivergingData = useMemo(() => {
-    if (!stats) return [];
-    return stats.by_team.slice(0, 12).map(t => ({
-      team:        t.pl_team,
-      'Atk IN':    t.in.attack   || 0,
-      'Def IN':    t.in.defense  || 0,
-      'Atk OUT':  -(t.out.attack  || 0),
-      'Def OUT':  -(t.out.defense || 0),
-    }));
-  }, [stats]);
-
-  // Team activity over GW — filtered to selected team
-  // Build {gw: {team: {in_attack, in_defense, out_attack, out_defense}}}
-  const allTeams = useMemo(() => {
-    if (!stats) return [];
-    return stats.by_team.map(t => t.pl_team).sort();
-  }, [stats]);
-
-  const teamActivityData = useMemo(() => {
-    if (!stats?.by_gw_team || teamFilter === 'ALL') return [];
-    const rows = stats.by_gw_team.filter(r => r.pl_team === teamFilter);
-    const gwMap = {};
-    rows.forEach(r => {
-      if (!gwMap[r.gw]) gwMap[r.gw] = { gw: r.gw, in: 0, out: 0 };
-      if (r.direction === 'in')  gwMap[r.gw].in  += r.count;
-      if (r.direction === 'out') gwMap[r.gw].out += r.count;
-    });
-    return Object.values(gwMap).sort((a, b) => a.gw - b.gw);
-  }, [stats, teamFilter]);
-
-  // FDR per GW for selected team — from fixtures endpoint
-  const teamFdrByGw = useMemo(() => {
-    if (!fixtureData || teamFilter === 'ALL') return {};
-    const fixtures = fixtureData.fixtures || [];
-    const teams    = fixtureData.teams    || [];
-    const teamObj  = teams.find(t => t.short_name === teamFilter);
-    if (!teamObj) return {};
-    const tid = teamObj.id;
-    const result = {};
-    fixtures.forEach(f => {
-      if (f.team_h === tid) {
-        // home — defensive difficulty = opp attack
-        result[f.gw] = { def: f.team_h_defence_fdr, atk: f.team_h_attack_fdr };
-      } else if (f.team_a === tid) {
-        result[f.gw] = { def: f.team_a_defence_fdr, atk: f.team_a_attack_fdr };
-      }
-    });
-    return result;
-  }, [fixtureData, teamFilter]);
-
-  // Merge FDR into team activity data
-  const teamActivityWithFdr = useMemo(() => {
-    return teamActivityData.map(d => ({
-      ...d,
-      gw:    `GW${d.gw}`,
-      fdr:   teamFdrByGw[d.gw]?.def ?? 3,   // defensive FDR = how hard to keep CS
-      fdrAtk: teamFdrByGw[d.gw]?.atk ?? 3,
-    }));
-  }, [teamActivityData, teamFdrByGw]);
-
-  const hitRateData = useMemo(() => {
-    if (!stats) return [];
-    return stats.by_position.map(p => ({
-      pos:      p.position,
-      'Hit %':  p.hit_rate  || 0,
-      'Avg Δ':  p.avg_delta || 0,
-    }));
-  }, [stats]);
-
-  const mgrScorecardData = useMemo(() => {
-    if (!stats) return [];
-    return [...stats.by_manager].sort((a, b) => b.net_delta - a.net_delta);
-  }, [stats]);
-
-  const gwChartData = useMemo(() => {
-    if (!stats) return [];
-    return stats.by_gw.map(g => ({ gw: `GW${g.gw}`, Transfers: g.count }));
-  }, [stats]);
-
-  const busiest_gw = stats?.busiest_gw;
-  const regret_board = stats?.regret_board || [];
 
   return (
     <div className="fade-up">
@@ -1709,8 +1702,7 @@ function TeamActivityChart({ data }) {
   );
 }
 
-
-     /*RECORDS PAGE
+   RECORDS PAGE
 ══════════════════════════════════════════ */
 export function RecordsPage() {
   const [searchParams] = useSearchParams();
