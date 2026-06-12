@@ -1,7 +1,7 @@
 import React, { useState, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
-import { useManagerMap } from '../ManagerContext';
+import { useManagerMap, useSeasonId } from '../ManagerContext';
 import { getManager } from '../config';
 import { Loading, ErrorMsg, SectionHeader, Avatar } from '../components/UI';
 
@@ -273,7 +273,7 @@ function MatchupDetail({ match, managerMap, seasonId, currentGw }) {
 export default function ToolsPage() {
   const [searchParams] = useSearchParams();
   const managerMap = useManagerMap();
-  const seasonId   = searchParams.get('season') || 1;
+  const seasonId = useSeasonId();
   const [activeTab, setActiveTab] = useState('fixtures');
 
   const { data: players,  loading: l1 } = useApi(`/query/season/${seasonId}/players`, [seasonId]);
