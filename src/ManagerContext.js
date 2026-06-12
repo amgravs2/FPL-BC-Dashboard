@@ -16,12 +16,19 @@ export function ManagerProvider({ seasonId, children }) {
   }, [seasonId]);
 
   return (
-    <ManagerContext.Provider value={managerMap}>
+    <ManagerContext.Provider value={{ managerMap, seasonId }}>
       {children}
     </ManagerContext.Provider>
   );
 }
 
 export function useManagerMap() {
-  return useContext(ManagerContext);
+  return useContext(ManagerContext).managerMap;
+}
+
+// New hook — gives any page the resolved seasonId without re-deriving it from the URL.
+// This ensures all pages use the same season that App.js resolved after /query/seasons loaded,
+// preventing the || 1 fallback from firing with a stale hardcoded season ID.
+export function useSeasonId() {
+  return useContext(ManagerContext).seasonId;
 }
