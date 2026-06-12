@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import { useApi }                    from '../hooks/useApi';
 import { getManager }                from '../config';
-import { useManagerMap }             from '../ManagerContext';
+import { useManagerMap, useSeasonId } from '../ManagerContext';
 import { Loading, ErrorMsg, SectionHeader, Avatar, StatCard } from '../components/UI';
 
 /* ══════════════════════════════════════════
@@ -258,7 +258,7 @@ export function PlayersPage() {
   const managerMap = useManagerMap();
   const navigate   = useNavigate();
   const [searchParams] = useSearchParams();
-  const seasonId = searchParams.get('season') || 1;
+  const seasonId = useSeasonId();
 
   const [search,          setSearch]          = useState('');
   const [posFilter,       setPosFilter]       = useState('ALL');
@@ -502,7 +502,7 @@ export function PlayerDrillPage() {
   const { playerId }   = useParams();
   const [searchParams] = useSearchParams();
   const navigate       = useNavigate();
-  const seasonId       = searchParams.get('season') || 1;
+  const seasonId = useSeasonId();
   const managerMap     = useManagerMap();
 
   const [expandedSeason, setExpandedSeason] = useState(null);
@@ -1055,7 +1055,7 @@ function SortTh({ label, sortKey, sort, dir, onSort, style: extraStyle = {} }) {
 export function TransfersPage() {
   const managerMap     = useManagerMap();
   const [searchParams] = useSearchParams();
-  const seasonId       = searchParams.get('season') || 1;
+  const seasonId = useSeasonId();
 
   const [view,        setView]        = useState('all');   // 'all' | 'summary' | 'stats'
   const [mgrFilter,   setMgrFilter]   = useState('ALL');
@@ -1810,7 +1810,7 @@ export function TransfersPage() {
 ══════════════════════════════════════════ */
 export function RecordsPage() {
   const [searchParams] = useSearchParams();
-  const seasonId = searchParams.get('season') || 1;
+  const seasonId = useSeasonId();
   const { data, loading, error } = useApi(`/query/season/${seasonId}/records`, [seasonId]);
 
   if (loading) return <Loading />;
