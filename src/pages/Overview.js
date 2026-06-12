@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { useApi } from '../hooks/useApi';
 import { getManager } from '../config';
-import { useManagerMap } from '../ManagerContext';
+import { useManagerMap, useSeasonId } from '../ManagerContext';
 import { Loading, ErrorMsg, SectionHeader, Avatar, ResultBadge, StatCard } from '../components/UI';
 
 const MEDAL = ['🥇', '🥈', '🥉'];
@@ -366,7 +366,7 @@ function ResultsGrid({ data, seasonId }) {
 export default function OverviewPage() {
   const managerMap = useManagerMap();
   const [searchParams] = useSearchParams();
-  const seasonId = searchParams.get('season') || 1;
+  const seasonId = useSeasonId() || 1;
 
   const { data: summary, loading: l1, error: e1 } = useApi(`/query/season/${seasonId}/summary`, [seasonId]);
   const { data: chart,   loading: l2, error: e2 } = useApi(`/query/season/${seasonId}/standings-chart`, [seasonId]);
