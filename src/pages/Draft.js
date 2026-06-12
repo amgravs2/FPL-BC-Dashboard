@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { useSearchParams } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { getManager } from '../config';
-import { useManagerMap } from '../ManagerContext';
+import { useManagerMap, useSeasonId } from '../ManagerContext';
 import { Loading, ErrorMsg, SectionHeader, Avatar } from '../components/UI';
 
 const MAX_ROUND = 15;
@@ -11,7 +11,7 @@ const MAX_ROUND = 15;
 export default function DraftPage() {
   const managerMap = useManagerMap();
   const [searchParams] = useSearchParams();
-  const seasonId     = searchParams.get('season') || 1;
+  const seasonId = useSeasonId();
   const [view, setView]             = useState('board');
   const [biasManager, setBiasManager] = useState(null);
 
