@@ -24,8 +24,8 @@ export function buildManagerMap(summaryRows) {
     const profile  = MANAGER_PROFILES[fullName] ?? { initials: row.first_name.slice(0, 2).toUpperCase(), color: '#888' };
     map[row.team_id] = {
       ...profile,
-      first:     row.first_name,
-      last:      row.last_name,
+      first:     row.player_first_name,
+      last:      row.row.player_last_name,
       team_name: row.team_name,   // season-specific team name
       team_id:   row.team_id,     // season-specific internal_team_id
     };
