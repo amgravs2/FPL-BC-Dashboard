@@ -15,19 +15,24 @@ export const MANAGER_PROFILES = {
  * Build a teamId → manager lookup from the season summary API response.
  * Call this once per season load and pass the result down as context/prop.
  *
- * Each summary row has: { team_id, first_name, last_name, team_name, ... }
+ * Each summary row from /query/season/{id}/summary has:
+ *   { team_id, first_name, last_name, team_name, ... }
  */
 export function buildManagerMap(summaryRows) {
   const map = {};
   summaryRows.forEach(row => {
-    const fullName = `${row.first_name} ${row.last_name}`;
-    const profile  = MANAGER_PROFILES[fullName] ?? { initials: row.first_name.slice(0, 2).toUpperCase(), color: '#888' };
+    // API returns player_first_name / player_last_name from fantasy_teams table
+    const firstName = row.first_name  ?? row.player_first_name ?? '';
+    const lastName  = row.last_name   ?? row.player_last_name  ?? '';
+    const fullName  = `${firstName} ${lastName}`.trim();
+    const profile   = MANAGER_PROFILES[fullName]
+      ?? { initials: firstName.slice(0, 2).toUpperCase(), color: '#888' };
     map[row.team_id] = {
       ...profile,
-      first:     row.player_first_name,
-      last:      row.row.player_last_name,
-      team_name: row.team_name,   // season-specific team name
-      team_id:   row.team_id,     // season-specific internal_team_id
+      first:     firstName,
+      last:      lastName,
+      team_name: row.team_name ?? '',
+      team_id:   row.team_id,
     };
   });
   return map;
