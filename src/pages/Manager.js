@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { useApi } from '../hooks/useApi';
 import { getManager } from '../config';
-import { useManagerMap } from '../ManagerContext';
+import { useManagerMap, useSeasonId } from '../ManagerContext';
 import { Loading, ErrorMsg, SectionHeader, Avatar, ResultBadge, StatCard } from '../components/UI';
 
 function PositionBreakdown({ data, color }) {
@@ -104,7 +104,7 @@ export default function ManagerPage() {
   const managerMap = useManagerMap();
   const { teamId }        = useParams();
   const [searchParams]    = useSearchParams();
-  const seasonId          = searchParams.get('season') || 1;
+  const seasonId = useSeasonId();
   const { data, loading, error } = useApi(`/query/season/${seasonId}/manager/${teamId}`, [seasonId, teamId]);
 
   if (loading) return <Loading />;
